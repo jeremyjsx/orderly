@@ -7,7 +7,7 @@ A **FastAPI** backend for e-commerce, designed to scale over time (async process
 #### Requirements
 
 - Python 3
-- `make`
+- make
 
 #### Quick Start
 

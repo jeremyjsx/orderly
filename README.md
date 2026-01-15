@@ -2,14 +2,14 @@
 
 A **FastAPI** backend for e-commerce, designed to scale over time (async processing and real-time tracking).
 
-### Quick start
+## Get Started
 
-#### Requirements
+### Prerequisites
 
 - Python 3
 - make
 
-#### Quick Start
+### Quick Start
 
 ```bash
 # Clone the repository

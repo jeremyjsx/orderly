@@ -3,6 +3,7 @@ VENV = venv
 PIP = $(VENV)/bin/pip
 UVICORN = $(VENV)/bin/uvicorn
 RUFF = $(VENV)/bin/ruff
+PORT ?= 8000
 
 .PHONY: venv install lint format format-check run
 
@@ -25,4 +26,4 @@ format-check:
 	$(RUFF) check .
 
 run:
-	$(UVICORN) app.main:app --reload
+	$(UVICORN) app.main:app --reload --port $(PORT)

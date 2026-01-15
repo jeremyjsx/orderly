@@ -8,7 +8,6 @@ def create_app() -> FastAPI:
         title=settings.APP_NAME,
         description=settings.DESCRIPTION,
         version=settings.VERSION,
-        port=settings.PORT,
     )
 
     return app

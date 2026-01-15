@@ -1,9 +1,8 @@
-from fastapi import Depends, FastAPI
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import FastAPI
 
+from app.api.router import router as api_router
 from app.core.config import settings
-from app.db.session import get_db
+from app.modules.health.router import router as health_router
 
 
 def create_app() -> FastAPI:
@@ -12,23 +11,14 @@ def create_app() -> FastAPI:
         description=settings.DESCRIPTION,
         version=settings.VERSION,
     )
+    register_routes(app)
 
     return app
 
 
+def register_routes(app: FastAPI):
+    app.include_router(api_router, prefix=settings.API_PREFIX)
+    app.include_router(health_router)
+
+
 app = create_app()
-
-
-@app.get("/health", tags=["health"])
-def health_check():
-    return {"status": "ok"}
-
-
-@app.get("/health/db", tags=["health"])
-async def health_check_db(session: AsyncSession = Depends(get_db)):
-    if settings.ENV != "development":
-        return {"status": "disabled"}
-
-    result = await session.execute(text("SELECT 1"))
-    ok = result.scalar_one_or_none() is not None
-    return {"status": "ok" if ok else "error"}

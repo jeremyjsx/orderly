@@ -1,0 +1,33 @@
+### Python / FastAPI
+__pycache__/
+*.py[cod]
+*.pyd
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Environment variables / secrets
+.env
+.env.*
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+
+# Type checking / lint / format caches
+.mypy_cache/
+.ruff_cache/
+.pyre/
+
+# Packaging / builds
+build/
+dist/
+*.egg-info/
+
+### OS
+.DS_Store

@@ -1,6 +1,7 @@
 import uuid
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
@@ -10,7 +11,11 @@ from app.modules.users.models import User
 async def create_user(session: AsyncSession, email: str, password: str) -> User:
     user = User(id=uuid.uuid4(), email=email, hashed_password=hash_password(password))
     session.add(user)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise
     await session.refresh(user)
     return user
 

@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import SessionDep
 from app.core.config import settings
-from app.db.session import get_db
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -14,7 +13,7 @@ def health_check():
 
 
 @router.get("/db")
-async def health_check_db(session: AsyncSession = Depends(get_db)):
+async def health_check_db(session: SessionDep):
     if settings.ENV != "development":
         return {"status": "disabled"}
 

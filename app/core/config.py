@@ -1,5 +1,5 @@
-from pydantic_settings import BaseSettings
 from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -9,7 +9,6 @@ class Settings(BaseSettings):
         "Scalable e-commerce backend with async processing and real-time tracking"
     )
     VERSION: str = "1.0.0"
-    PORT: int = 8000
     ENV: str = Field(default="development")
 
     # API

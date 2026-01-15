@@ -1,11 +1,12 @@
 from fastapi import FastAPI
+from app.core.config import settings
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title = "Orderly",
-        description = "Scalable e-commerce backend with async processing and real-time tracking",
-        version = "1.0.0",
-        port = 8000,
+        title = settings.APP_NAME,
+        description = settings.DESCRIPTION,
+        version = settings.VERSION,
+        port = settings.PORT,
     )
 
     return app

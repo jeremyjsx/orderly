@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = Field(..., description="SQLAlchemy database URL")
 
+    # JWT
+    JWT_SECRET_KEY: str = Field(..., description="JWT secret key")
+    JWT_ALGORITHM: str = Field(..., description="JWT algorithm")
+    JWT_EXPIRATION_TIME: int = Field(..., description="JWT expiration time in seconds")
+
     class Config:
         env_file = ".env"
         case_sensitive = True

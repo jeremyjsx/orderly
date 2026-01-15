@@ -65,6 +65,15 @@ def run_migrations_online() -> None:
 
     """
 
+    def do_run_migrations(sync_connection) -> None:
+        context.configure(
+            connection=sync_connection,
+            target_metadata=target_metadata,
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
+
     async def run_async_migrations() -> None:
         connectable = create_async_engine(
             settings.DATABASE_URL,
@@ -72,14 +81,7 @@ def run_migrations_online() -> None:
         )
 
         async with connectable.connect() as connection:
-            await connection.run_sync(
-                lambda sync_connection: context.configure(
-                    connection=sync_connection,
-                    target_metadata=target_metadata,
-                )
-            )
-
-            await connection.run_sync(lambda _: context.run_migrations())
+            await connection.run_sync(do_run_migrations)
 
         await connectable.dispose()
 

@@ -2,6 +2,7 @@ from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.router import router as api_router
 from app.core.config import settings
 from app.db.session import get_db
 
@@ -12,6 +13,7 @@ def create_app() -> FastAPI:
         description=settings.DESCRIPTION,
         version=settings.VERSION,
     )
+    app.include_router(api_router, prefix=settings.API_PREFIX)
 
     return app
 

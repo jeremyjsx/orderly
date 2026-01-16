@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # JWT
     JWT_SECRET_KEY: str = Field(..., description="JWT secret key")
     JWT_ALGORITHM: str = Field(..., description="JWT algorithm")
-    JWT_EXPIRATION_TIME: int = Field(..., description="JWT expiration time in seconds")
+    JWT_EXPIRATION_TIME: int = Field(..., description="JWT expiration time in minutes")
 
     class Config:
         env_file = ".env"

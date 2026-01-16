@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 
-from app.api.deps import SessionDep
+from app.api.deps import SessionDep, get_current_user
 from app.core.security import create_access_token, verify_password
 from app.modules.auth.schemas import Token
+from app.modules.users.models import User
 from app.modules.users.repo import create_user, get_user_by_email
 from app.modules.users.schemas import UserCreate, UserPublic
 
@@ -46,3 +47,8 @@ async def login(payload: UserCreate, session: SessionDep) -> Token:
     access_token = create_access_token(user.id)
 
     return Token(access_token=access_token, token_type="bearer")
+
+
+@router.get("/me", response_model=UserPublic)
+async def get_me(current_user: User = Depends(get_current_user)) -> UserPublic:
+    return UserPublic(id=current_user.id, email=current_user.email)

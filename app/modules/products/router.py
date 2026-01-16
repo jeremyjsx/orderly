@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.deps import SessionDep, get_current_user
+from app.api.deps import SessionDep, require_admin
 from app.modules.products.repo import create_product, get_product_by_id, list_products
 from app.modules.products.schemas import ProductCreate, ProductPublic
 from app.modules.users.models import User
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/products", tags=["products"])
 async def create_product_handler(
     payload: ProductCreate,
     session: SessionDep,
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_admin),
 ) -> ProductPublic:
     product = await create_product(session, payload)
     return ProductPublic(

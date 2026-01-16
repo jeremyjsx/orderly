@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_access_token
 from app.db.session import get_db
-from app.modules.users.models import User
+from app.modules.users.models import Role, User
 from app.modules.users.repo import get_user_by_id
 
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
@@ -24,3 +24,9 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
     return user
+
+
+async def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != Role.ADMIN.value:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    return current_user

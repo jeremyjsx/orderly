@@ -1,11 +1,17 @@
 import uuid
 from datetime import datetime
+from enum import Enum as EnumType
 
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+
+
+class Role(EnumType):
+    ADMIN = "admin"
+    USER = "user"
 
 
 class User(Base):
@@ -24,4 +30,7 @@ class User(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
+    role: Mapped[Role] = mapped_column(
+        String(10), nullable=False, default=Role.USER.value
     )

@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.api.deps import SessionDep
+from app.db.session import SessionDep
 from app.modules.products.models import Product
 from app.modules.products.schemas import ProductCreate
 

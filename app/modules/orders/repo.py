@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import SessionDep
+from app.db.session import SessionDep
 from app.modules.cart.models import Cart, CartItem
 from app.modules.orders.models import Order, OrderItem, OrderStatus
 from app.modules.products.models import Product

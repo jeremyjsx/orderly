@@ -3,8 +3,8 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.api.deps import SessionDep
 from app.core.security import hash_password
+from app.db.session import SessionDep
 from app.modules.users.models import User
 
 

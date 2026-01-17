@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.api.deps import SessionDep
+from app.db.session import SessionDep
 from app.modules.categories.models import Category
 from app.modules.categories.schemas import CategoryCreate, CategoryUpdate
 

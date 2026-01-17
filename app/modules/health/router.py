@@ -1,8 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from sqlalchemy import text
 
-from app.api.deps import SessionDep
-from app.core.config import settings
+from app.api.deps import SessionDep, require_admin
+from app.modules.users.models import User
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -13,10 +13,10 @@ def health_check():
 
 
 @router.get("/db")
-async def health_check_db(session: SessionDep):
-    if settings.ENV != "development":
-        return {"status": "disabled"}
-
+async def health_check_db(
+    session: SessionDep, admin_user: User = Depends(require_admin)
+):
+    """Database health check (admin only)."""
     result = await session.execute(text("SELECT 1"))
     ok = result.scalar_one_or_none() is not None
     return {"status": "ok" if ok else "error"}

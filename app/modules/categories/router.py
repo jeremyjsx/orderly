@@ -1,8 +1,9 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import SessionDep, require_admin
+from app.core.schemas import PaginatedResponse
 from app.modules.categories.repo import (
     create_category,
     delete_category,
@@ -37,12 +38,26 @@ async def create_category_handler(
     )
 
 
-@router.get("/", response_model=list[CategoryPublic])
+@router.get("/", response_model=PaginatedResponse[CategoryPublic])
 async def list_categories_handler(
-    session: SessionDep, offset: int = 0, limit: int = 10, active_only: bool = False
-) -> list[CategoryPublic]:
-    categories = await list_categories(session, offset, limit, active_only)
-    return [
+    session: SessionDep,
+    offset: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(
+        default=10, ge=1, le=100, description="Maximum number of records"
+    ),
+    active_only: bool = Query(
+        default=False, description="Show only active categories"
+    ),
+    search: str | None = Query(
+        default=None, description="Search in category name, description, and slug"
+    ),
+) -> PaginatedResponse[CategoryPublic]:
+    """List categories with pagination, filters, and search."""
+    categories, total = await list_categories(
+        session, offset=offset, limit=limit, active_only=active_only, search=search
+    )
+
+    items = [
         CategoryPublic(
             id=category.id,
             name=category.name,
@@ -52,6 +67,14 @@ async def list_categories_handler(
         )
         for category in categories
     ]
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        offset=offset,
+        limit=limit,
+        has_more=(offset + limit) < total,
+    )
 
 
 @router.get("/{category_id}", response_model=CategoryPublic)

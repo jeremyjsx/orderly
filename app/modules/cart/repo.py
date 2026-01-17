@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
@@ -48,7 +48,13 @@ async def get_cart_by_id(session: SessionDep, cart_id: uuid.UUID) -> Cart | None
 async def add_item_to_cart(
     session: SessionDep, cart_id: uuid.UUID, item_data: CartItemCreate
 ) -> CartItem:
-    product = await session.get(Product, item_data.product_id)
+    product_result = await session.execute(
+        select(Product)
+        .where(Product.id == item_data.product_id)
+        .with_for_update()
+    )
+    product = product_result.scalar_one_or_none()
+
     if not product:
         raise ValueError("Product not found")
 
@@ -65,10 +71,12 @@ async def add_item_to_cart(
     )
     existing_item = result.scalar_one_or_none()
     if existing_item:
-        existing_item.quantity += item_data.quantity
+        new_quantity = existing_item.quantity + item_data.quantity
 
-        if existing_item.quantity > product.stock:
+        if new_quantity > product.stock:
             raise ValueError(f"Insufficient stock. Stock: {product.stock}")
+
+        existing_item.quantity = new_quantity
 
         try:
             await session.commit()
@@ -108,7 +116,13 @@ async def update_cart_item_quantity(
     if not cart_item:
         raise ValueError(f"Cart item with id {item_id} not found")
 
-    product = await session.get(Product, cart_item.product_id)
+    product_result = await session.execute(
+        select(Product)
+        .where(Product.id == cart_item.product_id)
+        .with_for_update()
+    )
+    product = product_result.scalar_one_or_none()
+
     if not product:
         raise ValueError(f"Product with id {cart_item.product_id} not found")
 
@@ -170,3 +184,36 @@ async def get_cart_item_by_id(
         .options(selectinload(CartItem.product), selectinload(CartItem.cart))
     )
     return result.scalar_one_or_none()
+
+
+async def delete_cart_items_by_product_id(
+    session: SessionDep,
+    product_id: uuid.UUID,
+) -> int:
+    """Delete all cart items containing a specific product.
+
+    Returns the number of items deleted.
+    """
+    result = await session.execute(
+        delete(CartItem).where(CartItem.product_id == product_id)
+    )
+    return result.rowcount
+
+
+async def delete_cart_by_user_id(
+    session: SessionDep,
+    user_id: uuid.UUID,
+) -> bool:
+    """Delete user's active cart and all its items.
+
+    Returns True if a cart was deleted, False if no cart found.
+    """
+    cart = await get_cart_by_user_id(session, user_id)
+    if not cart:
+        return False
+
+    await session.execute(delete(CartItem).where(CartItem.cart_id == cart.id))
+
+    await session.delete(cart)
+
+    return True

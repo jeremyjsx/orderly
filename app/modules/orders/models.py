@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import Enum as EnumType
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,12 +26,14 @@ class Order(Base):
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, index=True
+        UUID(as_uuid=True),
+        nullable=False,
+        index=True,
     )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=OrderStatus.PENDING.value
     )
-    total: Mapped[float] = mapped_column(Float, nullable=False)
+    total: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="order")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -59,5 +61,5 @@ class OrderItem(Base):
     )
     product: Mapped["Product"] = relationship("Product")
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
-    price: Mapped[float] = mapped_column(Float, nullable=False)
-    subtotal: Mapped[float] = mapped_column(Float, nullable=False)
+    price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    subtotal: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)

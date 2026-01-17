@@ -1,10 +1,11 @@
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app.db.session import SessionDep
+from app.modules.cart.repo import delete_cart_items_by_product_id
 from app.modules.categories.repo import get_category_by_id
 from app.modules.products.models import Product
 from app.modules.products.schemas import ProductCreate, ProductUpdate
@@ -54,17 +55,50 @@ async def list_products(
     limit: int = 10,
     category_id: uuid.UUID | None = None,
     active_only: bool = False,
+    search: str | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
+    sort_by: str | None = None,
 ) -> tuple[Sequence[Product], int]:
+    """List products with pagination, filters, search, and sorting."""
     query = select(Product)
 
     if category_id is not None:
         query = query.where(Product.category_id == category_id)
     if active_only:
         query = query.where(Product.is_active)
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.where(
+            or_(
+                Product.name.ilike(search_pattern),
+                Product.description.ilike(search_pattern),
+            )
+        )
+    if min_price is not None:
+        query = query.where(Product.price >= min_price)
+    if max_price is not None:
+        query = query.where(Product.price <= max_price)
 
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await session.execute(count_query)
     total = total_result.scalar_one()
+
+    if sort_by:
+        if sort_by == "price":
+            query = query.order_by(Product.price.asc())
+        elif sort_by == "price_desc":
+            query = query.order_by(Product.price.desc())
+        elif sort_by == "name":
+            query = query.order_by(Product.name.asc())
+        elif sort_by == "name_desc":
+            query = query.order_by(Product.name.desc())
+        elif sort_by == "created_at":
+            query = query.order_by(Product.created_at.asc())
+        elif sort_by == "created_at_desc":
+            query = query.order_by(Product.created_at.desc())
+    else:
+        query = query.order_by(Product.created_at.desc())
 
     query = query.offset(offset).limit(limit)
     result = await session.execute(query)
@@ -112,3 +146,19 @@ async def update_product(
         await session.rollback()
         raise
     return product
+
+
+async def delete_product(session: SessionDep, product_id: uuid.UUID) -> bool:
+    """Delete a product by ID (hard delete).
+
+    Also removes the product from all active shopping carts.
+    """
+    product = await get_product_by_id(session, product_id)
+    if not product:
+        return False
+
+    await delete_cart_items_by_product_id(session, product_id)
+
+    await session.delete(product)
+    await session.commit()
+    return True

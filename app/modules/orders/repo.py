@@ -10,6 +10,33 @@ from app.modules.cart.models import Cart, CartItem
 from app.modules.orders.models import Order, OrderItem, OrderStatus
 from app.modules.products.models import Product
 
+VALID_TRANSITIONS: dict[str, set[str]] = {
+    OrderStatus.PENDING.value: {
+        OrderStatus.PROCESSING.value,
+        OrderStatus.CANCELLED.value,
+    },
+    OrderStatus.PROCESSING.value: {
+        OrderStatus.SHIPPED.value,
+        OrderStatus.CANCELLED.value,
+    },
+    OrderStatus.SHIPPED.value: {OrderStatus.DELIVERED.value},
+    OrderStatus.DELIVERED.value: set(),
+    OrderStatus.CANCELLED.value: set(),
+}
+
+
+def validate_status_transition(current_status: str, new_status: str) -> None:
+    """Validate if a status transition is allowed."""
+    if current_status == new_status:
+        raise ValueError(f"Order is already in status {new_status}")
+
+    allowed_transitions = VALID_TRANSITIONS.get(current_status, set())
+    if new_status not in allowed_transitions:
+        raise ValueError(
+            f"Cannot transition from {current_status} to {new_status}. "
+            f"Allowed transitions: {', '.join(allowed_transitions) or 'none (final state)'}"
+        )
+
 
 async def create_order_from_cart(
     session: SessionDep, cart_id: uuid.UUID, user_id: uuid.UUID
@@ -149,12 +176,43 @@ async def get_user_orders(
     return orders, total
 
 
+async def list_all_orders(
+    session: SessionDep,
+    offset: int = 0,
+    limit: int = 10,
+    status: str | None = None,
+) -> tuple[Sequence[Order], int]:
+    """List all orders with pagination and optional filters (admin only)."""
+    query = select(Order)
+
+    if status is not None:
+        query = query.where(Order.status == status)
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await session.execute(count_query)
+    total = total_result.scalar_one()
+
+    query = (
+        query.options(selectinload(Order.items).selectinload(OrderItem.product))
+        .offset(offset)
+        .limit(limit)
+        .order_by(Order.created_at.desc())
+    )
+    result = await session.execute(query)
+    orders = result.scalars().all()
+
+    return orders, total
+
+
 async def update_order_status(
     session: SessionDep, order_id: uuid.UUID, status: OrderStatus
 ) -> Order:
     order = await session.get(Order, order_id)
     if not order:
         raise ValueError(f"Order with id {order_id} not found")
+
+    validate_status_transition(order.status, status.value)
+
     order.status = status.value
     try:
         await session.commit()
@@ -170,15 +228,14 @@ async def cancel_order(session: SessionDep, order_id: uuid.UUID) -> Order:
     if not order:
         raise ValueError(f"Order with id {order_id} not found")
 
-    if order.status == OrderStatus.CANCELLED.value:
-        raise ValueError(f"Order with id {order_id} is already cancelled")
 
-    if order.status not in [OrderStatus.PENDING.value, OrderStatus.PROCESSING.value]:
-        raise ValueError(f"Cannot cancel order with status {order.status}")
+    validate_status_transition(order.status, OrderStatus.CANCELLED.value)
 
     for order_item in order.items:
         product_result = await session.execute(
-            select(Product).where(Product.id == order_item.product_id).with_for_update()
+            select(Product)
+            .where(Product.id == order_item.product_id)
+            .with_for_update()
         )
         product = product_result.scalar_one_or_none()
         if product:

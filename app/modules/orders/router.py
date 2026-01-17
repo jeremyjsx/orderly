@@ -11,6 +11,7 @@ from app.modules.orders.repo import (
     create_order_from_cart,
     get_order_by_id,
     get_user_orders,
+    list_all_orders,
     update_order_status,
 )
 from app.modules.orders.schemas import (
@@ -49,6 +50,37 @@ async def create_order(
     return _order_to_public(order)
 
 
+@router.get("/", response_model=PaginatedResponse[OrderPublic])
+async def list_orders(
+    session: SessionDep,
+    admin_user: User = Depends(require_admin),
+    offset: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(
+        default=10, ge=1, le=100, description="Maximum number of records"
+    ),
+    order_status: OrderStatus | None = Query(
+        default=None,
+        alias="status",
+        description="Filter by order status",
+    ),
+) -> PaginatedResponse[OrderPublic]:
+    """List all orders with pagination and optional filters (admin only)."""
+    status_value = order_status.value if order_status else None
+    orders, total = await list_all_orders(
+        session, offset=offset, limit=limit, status=status_value
+    )
+
+    items = [_order_to_public(order) for order in orders]
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        offset=offset,
+        limit=limit,
+        has_more=(offset + limit) < total,
+    )
+
+
 @router.get("/me", response_model=PaginatedResponse[OrderPublic])
 async def get_my_orders(
     session: SessionDep,
@@ -57,17 +89,16 @@ async def get_my_orders(
     limit: int = Query(
         default=10, ge=1, le=100, description="Maximum number of records"
     ),
-    status: str | None = Query(
+    order_status: OrderStatus | None = Query(
         default=None,
-        description=(
-            "Filter by order status "
-            "(pending, processing, shipped, delivered, cancelled)"
-        ),
+        alias="status",
+        description="Filter by order status",
     ),
 ) -> PaginatedResponse[OrderPublic]:
     """List authenticated user orders with pagination and optional filters."""
+    status_value = order_status.value if order_status else None
     orders, total = await get_user_orders(
-        session, current_user.id, offset=offset, limit=limit, status=status
+        session, current_user.id, offset=offset, limit=limit, status=status_value
     )
 
     items = [_order_to_public(order) for order in orders]

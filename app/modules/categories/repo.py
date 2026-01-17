@@ -1,7 +1,7 @@
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app.db.session import SessionDep
@@ -42,13 +42,36 @@ async def get_category_by_slug(session: SessionDep, slug: str) -> Category | Non
 
 
 async def list_categories(
-    session: SessionDep, offset: int = 0, limit: int = 10, active_only: bool = False
-) -> Sequence[Category]:
+    session: SessionDep,
+    offset: int = 0,
+    limit: int = 10,
+    active_only: bool = False,
+    search: str | None = None,
+) -> tuple[Sequence[Category], int]:
+    """List categories with pagination, filters, and search."""
     query = select(Category)
+
     if active_only:
         query = query.where(Category.is_active)
-    result = await session.execute(query.offset(offset).limit(limit))
-    return result.scalars().all()
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.where(
+            or_(
+                Category.name.ilike(search_pattern),
+                Category.description.ilike(search_pattern),
+                Category.slug.ilike(search_pattern),
+            )
+        )
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await session.execute(count_query)
+    total = total_result.scalar_one()
+
+    query = query.offset(offset).limit(limit)
+    result = await session.execute(query)
+    categories = result.scalars().all()
+
+    return categories, total
 
 
 async def update_category(

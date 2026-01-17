@@ -11,7 +11,9 @@ from app.modules.orders.models import Order, OrderItem, OrderStatus
 from app.modules.products.models import Product
 
 
-async def create_order_from_cart(session: SessionDep, cart_id: uuid.UUID) -> Order:
+async def create_order_from_cart(
+    session: SessionDep, cart_id: uuid.UUID, user_id: uuid.UUID
+) -> Order:
     result = await session.execute(
         select(Cart)
         .where(Cart.id == cart_id)
@@ -20,6 +22,11 @@ async def create_order_from_cart(session: SessionDep, cart_id: uuid.UUID) -> Ord
     cart = result.scalar_one_or_none()
     if not cart:
         raise ValueError(f"Cart with id {cart_id} not found")
+
+    if cart.user_id != user_id:
+        raise ValueError(
+            f"Cart with id {cart_id} does not belong to user with id {user_id}"
+        )
 
     if not cart.items:
         raise ValueError(f"Cart with id {cart_id} has no items")
@@ -75,12 +82,25 @@ async def create_order_from_cart(session: SessionDep, cart_id: uuid.UUID) -> Ord
         )
         session.add(order_item)
 
-        product = await session.get(Product, item_data["product_id"])
+        product_result = await session.execute(
+            select(Product)
+            .where(Product.id == item_data["product_id"])
+            .with_for_update()
+        )
+        product = product_result.scalar_one_or_none()
         if product:
+            if product.stock < item_data["quantity"]:
+                await session.rollback()
+                raise ValueError(
+                    f"Product with id {product.id} has insufficient stock. "
+                    f"Available: {product.stock}, Requested: {item_data['quantity']}"
+                )
             product.stock -= item_data["quantity"]
 
     for cart_item in cart.items:
         await session.delete(cart_item)
+
+    await session.delete(cart)
 
     try:
         await session.commit()
@@ -138,7 +158,12 @@ async def cancel_order(session: SessionDep, order_id: uuid.UUID) -> Order:
         raise ValueError(f"Cannot cancel order with status {order.status}")
 
     for order_item in order.items:
-        product = await session.get(Product, order_item.product_id)
+        product_result = await session.execute(
+            select(Product)
+            .where(Product.id == order_item.product_id)
+            .with_for_update()
+        )
+        product = product_result.scalar_one_or_none()
         if product:
             product.stock += order_item.quantity
 

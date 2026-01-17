@@ -5,11 +5,22 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.db.session import SessionDep
+from app.modules.categories.repo import get_category_by_id
 from app.modules.products.models import Product
-from app.modules.products.schemas import ProductCreate
+from app.modules.products.schemas import ProductCreate, ProductUpdate
 
 
 async def create_product(session: SessionDep, product_data: ProductCreate) -> Product:
+
+    category = await get_category_by_id(session, product_data.category_id)
+    if not category:
+        raise ValueError(f"Category with id {product_data.category_id} not found")
+
+    if not category.is_active:
+        raise ValueError(
+            f"Cannot create product in inactive category with id {product_data.category_id}"
+        )
+
     try:
         product = Product(
             id=uuid.uuid4(),
@@ -42,3 +53,45 @@ async def list_products(
 ) -> Sequence[Product]:
     result = await session.execute(select(Product).offset(offset).limit(limit))
     return result.scalars().all()
+
+
+async def update_product(
+    session: SessionDep, product_id: uuid.UUID, product_data: ProductUpdate
+) -> Product | None:
+    product = await get_product_by_id(session, product_id)
+    if not product:
+        return None
+
+    if product_data.category_id is not None:
+        category = await get_category_by_id(session, product_data.category_id)
+        if not category:
+            raise ValueError(
+                f"Category with id {product_data.category_id} not found"
+            )
+        if not category.is_active:
+            raise ValueError(
+                f"Cannot update product to inactive category with id {product_data.category_id}"
+            )
+
+    try:
+        if product_data.name is not None:
+            product.name = product_data.name
+        if product_data.description is not None:
+            product.description = product_data.description
+        if product_data.price is not None:
+            product.price = product_data.price
+        if product_data.stock is not None:
+            product.stock = product_data.stock
+        if product_data.category_id is not None:
+            product.category_id = product_data.category_id
+        if product_data.image_url is not None:
+            product.image_url = product_data.image_url
+        if product_data.is_active is not None:
+            product.is_active = product_data.is_active
+
+        await session.commit()
+        await session.refresh(product)
+    except IntegrityError:
+        await session.rollback()
+        raise
+    return product

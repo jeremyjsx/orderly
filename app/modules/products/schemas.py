@@ -12,6 +12,16 @@ class ProductCreate(BaseModel):
     image_url: str = Field(min_length=3, max_length=255)
 
 
+class ProductUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=3, max_length=255)
+    description: str | None = Field(default=None, min_length=3)
+    price: float | None = Field(default=None, gt=0)
+    stock: int | None = Field(default=None, ge=0)
+    category_id: uuid.UUID | None = None
+    image_url: str | None = Field(default=None, min_length=3, max_length=255)
+    is_active: bool | None = None
+
+
 class ProductPublic(BaseModel):
     id: uuid.UUID
     name: str

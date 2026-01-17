@@ -1,14 +1,15 @@
 import uuid
+from collections.abc import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import SessionDep
 from app.modules.products.models import Product
 from app.modules.products.schemas import ProductCreate
 
 
-async def create_product(session: AsyncSession, product_data: ProductCreate) -> Product:
+async def create_product(session: SessionDep, product_data: ProductCreate) -> Product:
     try:
         product = Product(
             id=uuid.uuid4(),
@@ -30,14 +31,14 @@ async def create_product(session: AsyncSession, product_data: ProductCreate) -> 
 
 
 async def get_product_by_id(
-    session: AsyncSession, product_id: uuid.UUID
+    session: SessionDep, product_id: uuid.UUID
 ) -> Product | None:
     result = await session.execute(select(Product).where(Product.id == product_id))
     return result.scalar_one_or_none()
 
 
 async def list_products(
-    session: AsyncSession, offset: int = 0, limit: int = 10
-) -> list[Product]:
+    session: SessionDep, offset: int = 0, limit: int = 10
+) -> Sequence[Product]:
     result = await session.execute(select(Product).offset(offset).limit(limit))
     return result.scalars().all()

@@ -45,9 +45,7 @@ async def list_categories_handler(
     limit: int = Query(
         default=10, ge=1, le=100, description="Maximum number of records"
     ),
-    active_only: bool = Query(
-        default=False, description="Show only active categories"
-    ),
+    active_only: bool = Query(default=False, description="Show only active categories"),
     search: str | None = Query(
         default=None, description="Search in category name, description, and slug"
     ),

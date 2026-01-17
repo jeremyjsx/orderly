@@ -67,9 +67,7 @@ async def list_products_handler(
     category_id: uuid.UUID | None = Query(
         default=None, description="Filter by category ID"
     ),
-    active_only: bool = Query(
-        default=False, description="Show only active products"
-    ),
+    active_only: bool = Query(default=False, description="Show only active products"),
     search: str | None = Query(
         default=None, description="Search in product name and description"
     ),

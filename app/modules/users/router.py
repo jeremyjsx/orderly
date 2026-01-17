@@ -96,9 +96,7 @@ async def get_user_handler(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    return UserPublic(
-        id=user.id, email=user.email, role=_get_role_value(user)
-    )
+    return UserPublic(id=user.id, email=user.email, role=_get_role_value(user))
 
 
 @router.patch("/{user_id}", response_model=UserPublic)

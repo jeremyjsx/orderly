@@ -32,9 +32,13 @@ def validate_status_transition(current_status: str, new_status: str) -> None:
 
     allowed_transitions = VALID_TRANSITIONS.get(current_status, set())
     if new_status not in allowed_transitions:
+        if allowed_transitions:
+            transitions_str = ", ".join(allowed_transitions)
+        else:
+            transitions_str = "none (final state)"
         raise ValueError(
             f"Cannot transition from {current_status} to {new_status}. "
-            f"Allowed transitions: {', '.join(allowed_transitions) or 'none (final state)'}"
+            f"Allowed transitions: {transitions_str}"
         )
 
 
@@ -228,14 +232,11 @@ async def cancel_order(session: SessionDep, order_id: uuid.UUID) -> Order:
     if not order:
         raise ValueError(f"Order with id {order_id} not found")
 
-
     validate_status_transition(order.status, OrderStatus.CANCELLED.value)
 
     for order_item in order.items:
         product_result = await session.execute(
-            select(Product)
-            .where(Product.id == order_item.product_id)
-            .with_for_update()
+            select(Product).where(Product.id == order_item.product_id).with_for_update()
         )
         product = product_result.scalar_one_or_none()
         if product:

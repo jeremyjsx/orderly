@@ -6,7 +6,6 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.security import hash_password, verify_password
 from app.db.session import SessionDep
-from app.modules.cart.repo import delete_cart_by_user_id
 from app.modules.users.models import User
 
 
@@ -103,8 +102,6 @@ async def delete_user(session: SessionDep, user_id: uuid.UUID) -> bool:
     user = await get_user_by_id(session, user_id)
     if not user:
         return False
-
-    await delete_cart_by_user_id(session, user_id)
 
     try:
         await session.delete(user)

@@ -8,8 +8,6 @@ Create Date: 2026-01-16 21:00:00.000000
 
 from collections.abc import Sequence
 
-import sqlalchemy as sa
-
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -21,7 +19,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Add Foreign Key constraint to carts.user_id.
-    
+
     Note: orders.user_id does NOT have FK constraint to allow user deletion
     while preserving orders with their original user_id (business requirement).
     """

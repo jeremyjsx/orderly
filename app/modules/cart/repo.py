@@ -49,9 +49,7 @@ async def add_item_to_cart(
     session: SessionDep, cart_id: uuid.UUID, item_data: CartItemCreate
 ) -> CartItem:
     product_result = await session.execute(
-        select(Product)
-        .where(Product.id == item_data.product_id)
-        .with_for_update()
+        select(Product).where(Product.id == item_data.product_id).with_for_update()
     )
     product = product_result.scalar_one_or_none()
 
@@ -117,9 +115,7 @@ async def update_cart_item_quantity(
         raise ValueError(f"Cart item with id {item_id} not found")
 
     product_result = await session.execute(
-        select(Product)
-        .where(Product.id == cart_item.product_id)
-        .with_for_update()
+        select(Product).where(Product.id == cart_item.product_id).with_for_update()
     )
     product = product_result.scalar_one_or_none()
 

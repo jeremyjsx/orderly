@@ -1,7 +1,7 @@
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.db.session import SessionDep
@@ -49,10 +49,28 @@ async def get_product_by_id(
 
 
 async def list_products(
-    session: SessionDep, offset: int = 0, limit: int = 10
-) -> Sequence[Product]:
-    result = await session.execute(select(Product).offset(offset).limit(limit))
-    return result.scalars().all()
+    session: SessionDep,
+    offset: int = 0,
+    limit: int = 10,
+    category_id: uuid.UUID | None = None,
+    active_only: bool = False,
+) -> tuple[Sequence[Product], int]:
+    query = select(Product)
+
+    if category_id is not None:
+        query = query.where(Product.category_id == category_id)
+    if active_only:
+        query = query.where(Product.is_active == True)
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await session.execute(count_query)
+    total = total_result.scalar_one()
+
+    query = query.offset(offset).limit(limit)
+    result = await session.execute(query)
+    products = result.scalars().all()
+
+    return products, total
 
 
 async def update_product(

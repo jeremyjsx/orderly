@@ -1,7 +1,7 @@
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
@@ -121,13 +121,32 @@ async def get_order_by_id(session: SessionDep, order_id: uuid.UUID) -> Order | N
     return result.scalar_one_or_none()
 
 
-async def get_user_orders(session: SessionDep, user_id: uuid.UUID) -> Sequence[Order]:
-    result = await session.execute(
-        select(Order)
-        .where(Order.user_id == user_id)
-        .options(selectinload(Order.items).selectinload(OrderItem.product))
+async def get_user_orders(
+    session: SessionDep,
+    user_id: uuid.UUID,
+    offset: int = 0,
+    limit: int = 10,
+    status: str | None = None,
+) -> tuple[Sequence[Order], int]:
+    query = select(Order).where(Order.user_id == user_id)
+
+    if status is not None:
+        query = query.where(Order.status == status)
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await session.execute(count_query)
+    total = total_result.scalar_one()
+
+    query = (
+        query.options(selectinload(Order.items).selectinload(OrderItem.product))
+        .offset(offset)
+        .limit(limit)
+        .order_by(Order.created_at.desc())
     )
-    return result.scalars().all()
+    result = await session.execute(query)
+    orders = result.scalars().all()
+
+    return orders, total
 
 
 async def update_order_status(

@@ -1,8 +1,9 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import SessionDep, get_current_user, require_admin
+from app.core.schemas import PaginatedResponse
 from app.modules.cart.repo import get_cart_by_user_id
 from app.modules.orders.models import OrderStatus
 from app.modules.orders.repo import (
@@ -48,13 +49,30 @@ async def create_order(
     return _order_to_public(order)
 
 
-@router.get("/me", response_model=list[OrderPublic])
+@router.get("/me", response_model=PaginatedResponse[OrderPublic])
 async def get_my_orders(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
-) -> list[OrderPublic]:
-    orders = await get_user_orders(session, current_user.id)
-    return [_order_to_public(order) for order in orders]
+    offset: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(default=10, ge=1, le=100, description="Maximum number of records"),
+    status: str | None = Query(
+        default=None, description="Filter by order status (pending, processing, shipped, delivered, cancelled)"
+    ),
+) -> PaginatedResponse[OrderPublic]:
+    """List authenticated user orders with pagination and optional filters."""
+    orders, total = await get_user_orders(
+        session, current_user.id, offset=offset, limit=limit, status=status
+    )
+
+    items = [_order_to_public(order) for order in orders]
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        offset=offset,
+        limit=limit,
+        has_more=(offset + limit) < total,
+    )
 
 
 @router.get("/{order_id}", response_model=OrderPublic)

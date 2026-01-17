@@ -54,9 +54,15 @@ async def get_my_orders(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
     offset: int = Query(default=0, ge=0, description="Number of records to skip"),
-    limit: int = Query(default=10, ge=1, le=100, description="Maximum number of records"),
+    limit: int = Query(
+        default=10, ge=1, le=100, description="Maximum number of records"
+    ),
     status: str | None = Query(
-        default=None, description="Filter by order status (pending, processing, shipped, delivered, cancelled)"
+        default=None,
+        description=(
+            "Filter by order status "
+            "(pending, processing, shipped, delivered, cancelled)"
+        ),
     ),
 ) -> PaginatedResponse[OrderPublic]:
     """List authenticated user orders with pagination and optional filters."""

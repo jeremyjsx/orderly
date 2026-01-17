@@ -178,9 +178,7 @@ async def cancel_order(session: SessionDep, order_id: uuid.UUID) -> Order:
 
     for order_item in order.items:
         product_result = await session.execute(
-            select(Product)
-            .where(Product.id == order_item.product_id)
-            .with_for_update()
+            select(Product).where(Product.id == order_item.product_id).with_for_update()
         )
         product = product_result.scalar_one_or_none()
         if product:

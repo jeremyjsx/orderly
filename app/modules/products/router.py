@@ -60,17 +60,21 @@ async def get_product_handler(
 async def list_products_handler(
     session: SessionDep,
     offset: int = Query(default=0, ge=0, description="Number of records to skip"),
-    limit: int = Query(default=10, ge=1, le=100, description="Maximum number of records"),
+    limit: int = Query(
+        default=10, ge=1, le=100, description="Maximum number of records"
+    ),
     category_id: uuid.UUID | None = Query(
         default=None, description="Filter by category ID"
     ),
-    active_only: bool = Query(
-        default=False, description="Show only active products"
-    ),
+    active_only: bool = Query(default=False, description="Show only active products"),
 ) -> PaginatedResponse[ProductPublic]:
     """List products with pagination and optional filters."""
     products, total = await list_products(
-        session, offset=offset, limit=limit, category_id=category_id, active_only=active_only
+        session,
+        offset=offset,
+        limit=limit,
+        category_id=category_id,
+        active_only=active_only,
     )
 
     items = [

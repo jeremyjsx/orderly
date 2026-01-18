@@ -39,7 +39,8 @@ async def get_my_cart(
     for item in cart.items or []:
         if not item.product:
             continue
-        item_subtotal = item.quantity * item.product.price
+        product_price = float(item.product.price)
+        item_subtotal = float(item.quantity * item.product.price)
         subtotal += item_subtotal
         total_quantity += item.quantity
 
@@ -51,7 +52,7 @@ async def get_my_cart(
                 product=ProductInfo(
                     id=item.product.id,
                     name=item.product.name,
-                    price=item.product.price,
+                    price=product_price,
                     image_url=item.product.image_url,
                 ),
                 subtotal=item_subtotal,
@@ -97,6 +98,9 @@ async def add_item_to_my_cart(
             detail="Product information not available",
         )
 
+    product_price = float(cart_item.product.price)
+    subtotal = float(cart_item.quantity * cart_item.product.price)
+    
     return CartItemWithProduct(
         id=cart_item.id,
         product_id=cart_item.product_id,
@@ -104,10 +108,10 @@ async def add_item_to_my_cart(
         product=ProductInfo(
             id=cart_item.product.id,
             name=cart_item.product.name,
-            price=cart_item.product.price,
+            price=product_price,
             image_url=cart_item.product.image_url,
         ),
-        subtotal=cart_item.quantity * cart_item.product.price,
+        subtotal=subtotal,
     )
 
 
@@ -147,6 +151,9 @@ async def update_cart_item(
             detail="Product information not available",
         )
 
+    product_price = float(updated_item.product.price)
+    subtotal = float(updated_item.quantity * updated_item.product.price)
+    
     return CartItemWithProduct(
         id=updated_item.id,
         product_id=updated_item.product_id,
@@ -154,10 +161,10 @@ async def update_cart_item(
         product=ProductInfo(
             id=updated_item.product.id,
             name=updated_item.product.name,
-            price=updated_item.product.price,
+            price=product_price,
             image_url=updated_item.product.image_url,
         ),
-        subtotal=updated_item.quantity * updated_item.product.price,
+        subtotal=subtotal,
     )
 
 

@@ -24,11 +24,12 @@ async def create_product_handler(
     admin_user: User = Depends(require_admin),
 ) -> ProductPublic:
     product = await create_product(session, payload)
+    product_price = float(product.price)
     return ProductPublic(
         id=product.id,
         name=product.name,
         description=product.description,
-        price=product.price,
+        price=product_price,
         stock=product.stock,
         category_id=product.category_id,
         image_url=product.image_url,
@@ -45,11 +46,12 @@ async def get_product_handler(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
         )
+    product_price = float(product.price)
     return ProductPublic(
         id=product.id,
         name=product.name,
         description=product.description,
-        price=product.price,
+        price=product_price,
         stock=product.stock,
         category_id=product.category_id,
         image_url=product.image_url,
@@ -103,7 +105,7 @@ async def list_products_handler(
             id=product.id,
             name=product.name,
             description=product.description,
-            price=product.price,
+            price=float(product.price),
             stock=product.stock,
             category_id=product.category_id,
             image_url=product.image_url,
@@ -141,11 +143,12 @@ async def update_product_handler(
             status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
         )
 
+    product_price = float(product.price)
     return ProductPublic(
         id=product.id,
         name=product.name,
         description=product.description,
-        price=product.price,
+        price=product_price,
         stock=product.stock,
         category_id=product.category_id,
         image_url=product.image_url,

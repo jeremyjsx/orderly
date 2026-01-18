@@ -1,5 +1,5 @@
 import os
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
@@ -45,7 +45,7 @@ async def setup_database():
 
 
 @pytest.fixture(scope="function")
-async def db_session(setup_database) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(setup_database) -> AsyncGenerator[AsyncSession]:
     """Create a fresh database session for each test with transaction rollback."""
     async with test_engine.connect() as connection:
         trans = await connection.begin()
@@ -55,7 +55,7 @@ async def db_session(setup_database) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture(scope="function")
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """Create a test client with database override."""
     app = create_app()
 

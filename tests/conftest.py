@@ -31,7 +31,7 @@ async def _setup_test_db():
     test_engine = create_async_engine(
         TEST_DATABASE_URL,
         echo=False,
-        pool_pre_ping=True,
+        pool_pre_ping=False,
     )
     TestSessionLocal = async_sessionmaker(
         bind=test_engine,
@@ -51,8 +51,13 @@ async def _setup_test_db():
 async def db_session(_setup_test_db) -> AsyncGenerator[AsyncSession]:
     """Create a fresh database session for each test with transaction rollback."""
     async with TestSessionLocal() as session:
-        yield session
-        await session.rollback()
+        # Use a savepoint to allow rollback of commits made within the test
+        trans = await session.begin_nested()
+        try:
+            yield session
+        finally:
+            await trans.rollback()
+            await session.rollback()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -62,7 +67,8 @@ async def client(_setup_test_db) -> AsyncGenerator[AsyncClient]:
 
     async def override_get_db():
         async with TestSessionLocal() as session:
-            yield session
+            async with session.begin():
+                yield session
             await session.rollback()
 
     from app.db.session import get_db
@@ -89,6 +95,7 @@ async def test_admin(db_session: AsyncSession) -> User:
     user.role = Role.ADMIN.value
     await db_session.commit()
     await db_session.refresh(user)
+    # Note: commit is done, but the outer transaction will be rolled back
     return user
 
 

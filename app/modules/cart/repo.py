@@ -165,6 +165,11 @@ async def clear_cart(
     for item in items:
         await session.delete(item)
 
+    cart_result = await session.execute(select(Cart).where(Cart.id == cart_id))
+    cart = cart_result.scalar_one_or_none()
+    if cart:
+        session.expire(cart, ["items"])
+
     try:
         await session.commit()
     except IntegrityError:

@@ -1,8 +1,14 @@
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore",
+    )
+
     # General
     APP_NAME: str = "Orderly"
     DESCRIPTION: str = (
@@ -21,11 +27,6 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = Field(..., description="JWT secret key")
     JWT_ALGORITHM: str = Field(..., description="JWT algorithm")
     JWT_EXPIRATION_TIME: int = Field(..., description="JWT expiration time in minutes")
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        extra = "ignore"
 
 
 settings = Settings()

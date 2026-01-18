@@ -32,11 +32,8 @@ jobs:
       - name: Start PostgreSQL
         uses: ankane/setup-postgres@v1
         with:
-          version: 16
-
-      - name: Create test database
-        run: |
-          psql -U postgres -c "CREATE DATABASE orderly_test;"
+          postgres-version: 16
+          database: orderly_test
 
       - name: Run tests
         env:

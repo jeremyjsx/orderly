@@ -57,11 +57,9 @@ async def test_create_category_duplicate_slug(client: AsyncClient, admin_token: 
         "description": "Test description",
         "slug": "test-category",
     }
-    # Create first category
     response1 = await client.post("/api/v1/categories/", json=payload, headers=headers)
     assert response1.status_code == 201
 
-    # Try to create duplicate
     response2 = await client.post("/api/v1/categories/", json=payload, headers=headers)
     assert response2.status_code == 409
 
@@ -126,3 +124,136 @@ async def test_delete_category_requires_admin(client: AsyncClient, db_session):
 
     response = await client.delete(f"/api/v1/categories/{category.id}")
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_get_category_success(client: AsyncClient, admin_token: str, db_session):
+    """Test successfully getting a category by ID."""
+    from app.modules.categories.models import Category
+
+    category = Category(
+        id=uuid.uuid4(),
+        name="Test Category",
+        description="Test Description",
+        slug="test-category",
+    )
+    db_session.add(category)
+    await db_session.commit()
+
+    response = await client.get(f"/api/v1/categories/{category.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == str(category.id)
+    assert data["name"] == "Test Category"
+    assert data["slug"] == "test-category"
+
+
+@pytest.mark.asyncio
+async def test_get_category_by_slug_success(
+    client: AsyncClient, admin_token: str, db_session
+):
+    """Test successfully getting a category by slug."""
+    from app.modules.categories.models import Category
+
+    category = Category(
+        id=uuid.uuid4(),
+        name="Test Category",
+        description="Test Description",
+        slug="test-category",
+    )
+    db_session.add(category)
+    await db_session.commit()
+
+    response = await client.get("/api/v1/categories/slug/test-category")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == str(category.id)
+    assert data["name"] == "Test Category"
+    assert data["slug"] == "test-category"
+
+
+@pytest.mark.asyncio
+async def test_update_category_success(
+    client: AsyncClient, admin_token: str, db_session
+):
+    """Test successfully updating a category."""
+    from app.modules.categories.models import Category
+
+    category = Category(
+        id=uuid.uuid4(),
+        name="Test Category",
+        description="Test",
+        slug="test-category",
+    )
+    db_session.add(category)
+    await db_session.commit()
+
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    payload = {
+        "name": "Updated Category",
+        "description": "Updated Description",
+    }
+    response = await client.patch(
+        f"/api/v1/categories/{category.id}", json=payload, headers=headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Updated Category"
+    assert data["description"] == "Updated Description"
+    assert data["id"] == str(category.id)
+
+
+@pytest.mark.asyncio
+async def test_delete_category_success(
+    client: AsyncClient, admin_token: str, db_session
+):
+    """Test successfully deleting a category."""
+    from app.modules.categories.models import Category
+
+    category = Category(
+        id=uuid.uuid4(),
+        name="Test Category",
+        description="Test",
+        slug="test-category",
+    )
+    db_session.add(category)
+    await db_session.commit()
+
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await client.delete(f"/api/v1/categories/{category.id}", headers=headers)
+    assert response.status_code == 204
+
+    get_response = await client.get(f"/api/v1/categories/{category.id}")
+    assert get_response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_list_categories_with_items(
+    client: AsyncClient, admin_token: str, db_session
+):
+    """Test listing categories with items."""
+    from app.modules.categories.models import Category
+
+    category1 = Category(
+        id=uuid.uuid4(),
+        name="Category 1",
+        description="Description 1",
+        slug="category-1",
+    )
+    category2 = Category(
+        id=uuid.uuid4(),
+        name="Category 2",
+        description="Description 2",
+        slug="category-2",
+    )
+    db_session.add_all([category1, category2])
+    await db_session.commit()
+
+    response = await client.get("/api/v1/categories/")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] >= 2
+    assert len(data["items"]) >= 2
+    category_names = [cat["name"] for cat in data["items"]]
+    assert "Category 1" in category_names
+    assert "Category 2" in category_names

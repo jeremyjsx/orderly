@@ -78,7 +78,7 @@ async def create_order_from_cart(
         if product.stock < cart_item.quantity:
             raise ValueError(f"Product with id {product.id} has insufficient stock")
 
-        item_subtotal = Decimal(str(cart_item.quantity)) * product.price
+        item_subtotal = Decimal(str(cart_item.quantity)) * Decimal(str(product.price))
         order_total += item_subtotal
         order_items_data.append(
             {

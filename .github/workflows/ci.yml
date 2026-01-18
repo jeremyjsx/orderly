@@ -28,3 +28,21 @@ jobs:
 
       - name: Ruff lint
         run: ruff check .
+
+      - name: Start PostgreSQL
+        uses: ankane/setup-postgres@v1
+        with:
+          version: 16
+
+      - name: Create test database
+        run: |
+          psql -U postgres -c "CREATE DATABASE orderly_test;"
+
+      - name: Run tests
+        env:
+          JWT_SECRET_KEY: test-secret-key-for-ci
+          JWT_ALGORITHM: HS256
+          JWT_EXPIRATION_TIME: 30
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/orderly_test
+          TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/orderly_test
+        run: pytest tests/ -v

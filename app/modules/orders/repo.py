@@ -1,10 +1,10 @@
 import uuid
 from collections.abc import Sequence
+from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
-from decimal import Decimal
 
 from app.db.session import SessionDep
 from app.modules.cart.models import Cart, CartItem

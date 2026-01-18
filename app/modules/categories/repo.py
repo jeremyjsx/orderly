@@ -28,7 +28,9 @@ async def create_category(
         await session.commit()
     except IntegrityError as err:
         await session.rollback()
-        raise ValueError(f"Category with slug '{category_data.slug}' already exists") from err
+        raise ValueError(
+            f"Category with slug '{category_data.slug}' already exists"
+        ) from err
     await session.refresh(category)
     return category
 
@@ -88,7 +90,9 @@ async def update_category(
     if category_data.slug is not None:
         existing = await get_category_by_slug(session, category_data.slug)
         if existing and existing.id != category_id:
-            raise ValueError(f"Category with slug '{category_data.slug}' already exists")
+            raise ValueError(
+                f"Category with slug '{category_data.slug}' already exists"
+            )
 
     try:
         if category_data.name is not None:
@@ -106,7 +110,9 @@ async def update_category(
         await session.rollback()
 
         if category_data.slug is not None:
-            raise ValueError(f"Category with slug '{category_data.slug}' already exists") from err
+            raise ValueError(
+                f"Category with slug '{category_data.slug}' already exists"
+            ) from err
         raise ValueError("Database integrity constraint violation") from err
     return category
 

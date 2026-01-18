@@ -28,9 +28,7 @@ async def register(payload: UserCreate, session: SessionDep) -> UserPublic:
             status_code=status.HTTP_409_CONFLICT, detail="User already exists"
         ) from err
 
-    return UserPublic(
-        id=created.id, email=created.email, role=get_role_value(created)
-    )
+    return UserPublic(id=created.id, email=created.email, role=get_role_value(created))
 
 
 @router.post("/login", response_model=Token)

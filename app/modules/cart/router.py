@@ -100,7 +100,7 @@ async def add_item_to_my_cart(
 
     product_price = float(cart_item.product.price)
     subtotal = float(cart_item.quantity * cart_item.product.price)
-    
+
     return CartItemWithProduct(
         id=cart_item.id,
         product_id=cart_item.product_id,
@@ -153,7 +153,7 @@ async def update_cart_item(
 
     product_price = float(updated_item.product.price)
     subtotal = float(updated_item.quantity * updated_item.product.price)
-    
+
     return CartItemWithProduct(
         id=updated_item.id,
         product_id=updated_item.product_id,

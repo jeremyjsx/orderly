@@ -225,7 +225,7 @@ async def update_order_status(
     except IntegrityError:
         await session.rollback()
         raise
-    
+
     updated_order = await get_order_by_id(session, order_id)
     if not updated_order:
         raise ValueError(f"Order with id {order_id} not found after update")

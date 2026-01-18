@@ -1,77 +1,64 @@
 import os
+import uuid
 from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
-from app.core.security import create_access_token
+from app.core.security import create_access_token, hash_password
 from app.db import models  # noqa: F401 - Import all models to register them
 from app.db.base import Base
+from app.db.session import get_db
 from app.main import create_app
 from app.modules.users.models import Role, User
-from app.modules.users.repo import create_user
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", settings.DATABASE_URL)
 
-test_engine = None
-TestSessionLocal = None
 
+@pytest_asyncio.fixture(scope="function")
+async def db_session() -> AsyncGenerator[AsyncSession]:
+    """Create a fresh database session for each test.
 
-@pytest_asyncio.fixture(scope="session")
-async def _setup_test_db():
-    """Initialize test database engine and session factory."""
-    global test_engine, TestSessionLocal
-    test_engine = create_async_engine(
+    Each test gets a completely fresh database with tables created
+    and dropped after the test completes.
+    """
+    # Create engine for each test to avoid event loop issues
+    engine = create_async_engine(
         TEST_DATABASE_URL,
         echo=False,
-        pool_pre_ping=False,
+        poolclass=NullPool,  # Avoid event loop issues with connection pooling
     )
-    TestSessionLocal = async_sessionmaker(
-        bind=test_engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-    async with test_engine.begin() as conn:
+
+    # Create all tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)  # Clean slate
         await conn.run_sync(Base.metadata.create_all)
-    yield
-    if test_engine:
-        async with test_engine.begin() as conn:
+
+    # Create session
+    session = AsyncSession(bind=engine, expire_on_commit=False)
+
+    try:
+        yield session
+    finally:
+        await session.close()
+        # Drop all tables after test
+        async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
-        await test_engine.dispose()
+        await engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_session(_setup_test_db) -> AsyncGenerator[AsyncSession]:
-    """Create a fresh database session for each test with transaction rollback."""
-    async with TestSessionLocal() as session:
-        # Use a savepoint to allow rollback of commits made within the test
-        trans = await session.begin_nested()
-        try:
-            yield session
-        finally:
-            await trans.rollback()
-            await session.rollback()
-
-
-@pytest_asyncio.fixture(scope="function")
-async def client(_setup_test_db) -> AsyncGenerator[AsyncClient]:
-    """Create a test client with database override."""
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
+    """Create a test client that shares the same database session."""
     app = create_app()
 
     async def override_get_db():
-        async with TestSessionLocal() as session:
-            async with session.begin():
-                yield session
-            await session.rollback()
-
-    from app.db.session import get_db
+        """Override to use the same session as the test."""
+        yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
 
@@ -85,17 +72,29 @@ async def client(_setup_test_db) -> AsyncGenerator[AsyncClient]:
 @pytest_asyncio.fixture
 async def test_user(db_session: AsyncSession) -> User:
     """Create a test user with USER role."""
-    return await create_user(db_session, "test@example.com", "testpassword123")
+    user = User(
+        id=uuid.uuid4(),
+        email="test@example.com",
+        hashed_password=hash_password("testpassword123"),
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
 
 
 @pytest_asyncio.fixture
 async def test_admin(db_session: AsyncSession) -> User:
     """Create a test admin user."""
-    user = await create_user(db_session, "admin@example.com", "adminpassword123")
-    user.role = Role.ADMIN.value
+    user = User(
+        id=uuid.uuid4(),
+        email="admin@example.com",
+        hashed_password=hash_password("adminpassword123"),
+        role=Role.ADMIN.value,
+    )
+    db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
-    # Note: commit is done, but the outer transaction will be rolled back
     return user
 
 

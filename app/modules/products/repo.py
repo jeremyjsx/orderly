@@ -159,6 +159,10 @@ async def delete_product(session: SessionDep, product_id: uuid.UUID) -> bool:
 
     await delete_cart_items_by_product_id(session, product_id)
 
-    await session.delete(product)
-    await session.commit()
+    try:
+        await session.delete(product)
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise
     return True

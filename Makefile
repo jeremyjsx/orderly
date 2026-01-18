@@ -16,7 +16,10 @@ endif
 
 PORT ?= 8000
 
-.PHONY: venv install lint format format-check run
+PYTEST = $(VENV_PYTHON) -m pytest
+DOCKER_COMPOSE = docker-compose
+
+.PHONY: venv install lint format format-check run test test-docker clean-test
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -38,3 +41,32 @@ format-check:
 
 run:
 	$(UVICORN) app.main:app --reload --port $(PORT)
+
+test:
+	$(PYTEST) tests/
+
+test-docker:
+	@echo "Starting test database container..."
+	$(DOCKER_COMPOSE) -f docker-compose.test.yml up -d postgres-test
+	@echo "Waiting for database to be ready..."
+	@timeout=30; \
+	while [ $$timeout -gt 0 ]; do \
+		if $(DOCKER_COMPOSE) -f docker-compose.test.yml exec -T postgres-test pg_isready -U test_user > /dev/null 2>&1; then \
+			break; \
+		fi; \
+		sleep 1; \
+		timeout=$$((timeout-1)); \
+	done; \
+	if [ $$timeout -eq 0 ]; then \
+		echo "Database failed to start"; \
+		$(DOCKER_COMPOSE) -f docker-compose.test.yml down -v; \
+		exit 1; \
+	fi
+	@echo "Running tests..."
+	TEST_DATABASE_URL=postgresql+asyncpg://test_user:test_password@localhost:5433/orderly_test $(PYTEST) tests/ || EXIT_CODE=$$?; \
+	echo "Cleaning up test container..."; \
+	$(DOCKER_COMPOSE) -f docker-compose.test.yml down -v; \
+	exit $$EXIT_CODE
+
+clean-test:
+	$(DOCKER_COMPOSE) -f docker-compose.test.yml down -v

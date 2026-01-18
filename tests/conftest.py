@@ -1,5 +1,5 @@
 import os
-from collections.abc import AsyncGenerator
+from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
@@ -20,51 +20,47 @@ from app.modules.users.repo import create_user
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", settings.DATABASE_URL)
 
-test_engine = None
-TestSessionLocal = None
+test_engine = create_async_engine(
+    TEST_DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+)
+
+TestSessionLocal = async_sessionmaker(
+    bind=test_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
 
 
-@pytest_asyncio.fixture(scope="session")
-async def _setup_test_db():
-    """Initialize test database engine and session factory."""
-    global test_engine, TestSessionLocal
-    if test_engine is None:
-        test_engine = create_async_engine(
-            TEST_DATABASE_URL,
-            echo=False,
-            pool_pre_ping=False,
-        )
-        TestSessionLocal = async_sessionmaker(
-            bind=test_engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
-        )
-        async with test_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+@pytest.fixture(scope="function")
+async def setup_database():
+    """Create all tables for each test function."""
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     yield
-    if test_engine:
-        async with test_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-        await test_engine.dispose()
+    # Clean up: drop all tables after each test
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest_asyncio.fixture(scope="function")
-async def db_session(_setup_test_db) -> AsyncGenerator[AsyncSession]:
-    """Create a fresh database session for each test."""
-    async with TestSessionLocal() as session:
-        yield session
-        await session.rollback()
+@pytest.fixture(scope="function")
+async def db_session(setup_database) -> AsyncGenerator[AsyncSession, None]:
+    """Create a fresh database session for each test with transaction rollback."""
+    async with test_engine.connect() as connection:
+        trans = await connection.begin()
+        async with TestSessionLocal(bind=connection) as session:
+            yield session
+            await trans.rollback()
 
 
-@pytest_asyncio.fixture(scope="function")
-async def client(_setup_test_db) -> AsyncGenerator[AsyncClient]:
+@pytest.fixture(scope="function")
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create a test client with database override."""
     app = create_app()
 
     async def override_get_db():
-        async with TestSessionLocal() as session:
-            yield session
-            await session.rollback()
+        yield db_session
 
     from app.db.session import get_db
 
@@ -77,24 +73,20 @@ async def client(_setup_test_db) -> AsyncGenerator[AsyncClient]:
     app.dependency_overrides.clear()
 
 
-@pytest_asyncio.fixture
-async def test_user(_setup_test_db) -> User:
+@pytest.fixture
+async def test_user(db_session: AsyncSession) -> User:
     """Create a test user with USER role."""
-    async with TestSessionLocal() as session:
-        user = await create_user(session, "test@example.com", "testpassword123")
-        await session.commit()
-        return user
+    return await create_user(db_session, "test@example.com", "testpassword123")
 
 
-@pytest_asyncio.fixture
-async def test_admin(_setup_test_db) -> User:
+@pytest.fixture
+async def test_admin(db_session: AsyncSession) -> User:
     """Create a test admin user."""
-    async with TestSessionLocal() as session:
-        user = await create_user(session, "admin@example.com", "adminpassword123")
-        user.role = Role.ADMIN.value
-        await session.commit()
-        await session.refresh(user)
-        return user
+    user = await create_user(db_session, "admin@example.com", "adminpassword123")
+    user.role = Role.ADMIN.value
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
 
 
 @pytest.fixture

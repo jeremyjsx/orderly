@@ -110,7 +110,8 @@ async def update_cart_item_quantity(
     if quantity <= 0:
         raise ValueError("Quantity must be greater than 0")
 
-    cart_item = await session.get(CartItem, item_id)
+    result = await session.execute(select(CartItem).where(CartItem.id == item_id))
+    cart_item = result.scalar_one_or_none()
     if not cart_item:
         raise ValueError(f"Cart item with id {item_id} not found")
 
@@ -141,7 +142,8 @@ async def remove_cart_item(
     session: SessionDep,
     item_id: uuid.UUID,
 ) -> None:
-    cart_item = await session.get(CartItem, item_id)
+    result = await session.execute(select(CartItem).where(CartItem.id == item_id))
+    cart_item = result.scalar_one_or_none()
     if not cart_item:
         raise ValueError(f"Cart item with id {item_id} not found")
 
@@ -208,8 +210,13 @@ async def delete_cart_by_user_id(
     if not cart:
         return False
 
-    await session.execute(delete(CartItem).where(CartItem.cart_id == cart.id))
+    try:
+        await session.execute(delete(CartItem).where(CartItem.cart_id == cart.id))
 
-    await session.delete(cart)
+        await session.delete(cart)
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise
 
     return True

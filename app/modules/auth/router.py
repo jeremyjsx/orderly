@@ -6,6 +6,7 @@ from app.core.security import create_access_token, verify_password
 from app.modules.auth.schemas import Token
 from app.modules.users.repo import create_user, get_user_by_email
 from app.modules.users.schemas import UserCreate, UserPublic
+from app.modules.users.utils import get_role_value
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -27,7 +28,9 @@ async def register(payload: UserCreate, session: SessionDep) -> UserPublic:
             status_code=status.HTTP_409_CONFLICT, detail="User already exists"
         ) from err
 
-    return UserPublic(id=created.id, email=created.email)
+    return UserPublic(
+        id=created.id, email=created.email, role=get_role_value(created)
+    )
 
 
 @router.post("/login", response_model=Token)

@@ -1,3 +1,4 @@
+import logging
 import uuid
 from collections.abc import Sequence
 from decimal import Decimal
@@ -7,9 +8,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.db.session import SessionDep
+from app.events.client import publish_event
+from app.events.orders.utils import order_to_created_event
 from app.modules.cart.models import Cart, CartItem
 from app.modules.orders.models import Order, OrderItem, OrderStatus
 from app.modules.products.models import Product
+
+logger = logging.getLogger(__name__)
 
 VALID_TRANSITIONS: dict[str, set[str]] = {
     OrderStatus.PENDING.value: {
@@ -141,6 +146,13 @@ async def create_order_from_cart(
         raise
 
     await session.refresh(order, ["items"])
+
+    try:
+        event = order_to_created_event(order)
+        await publish_event(event, routing_key="order.created")
+    except Exception as e:
+        logger.error(f"Failed to publish order.created event: {e}", exc_info=True)
+
     return order
 
 

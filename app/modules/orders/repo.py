@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
+from decimal import Decimal
 
 from app.db.session import SessionDep
 from app.modules.cart.models import Cart, CartItem
@@ -62,7 +63,7 @@ async def create_order_from_cart(
     if not cart.items:
         raise ValueError(f"Cart with id {cart_id} has no items")
 
-    order_total = 0.0
+    order_total = Decimal("0.0")
     order_items_data = []
 
     for cart_item in cart.items:
@@ -77,7 +78,7 @@ async def create_order_from_cart(
         if product.stock < cart_item.quantity:
             raise ValueError(f"Product with id {product.id} has insufficient stock")
 
-        item_subtotal = cart_item.quantity * product.price
+        item_subtotal = Decimal(str(cart_item.quantity)) * product.price
         order_total += item_subtotal
         order_items_data.append(
             {
@@ -211,7 +212,8 @@ async def list_all_orders(
 async def update_order_status(
     session: SessionDep, order_id: uuid.UUID, status: OrderStatus
 ) -> Order:
-    order = await session.get(Order, order_id)
+    result = await session.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
     if not order:
         raise ValueError(f"Order with id {order_id} not found")
 
@@ -223,8 +225,11 @@ async def update_order_status(
     except IntegrityError:
         await session.rollback()
         raise
-    await session.refresh(order)
-    return order
+    
+    updated_order = await get_order_by_id(session, order_id)
+    if not updated_order:
+        raise ValueError(f"Order with id {order_id} not found after update")
+    return updated_order
 
 
 async def cancel_order(session: SessionDep, order_id: uuid.UUID) -> Order:

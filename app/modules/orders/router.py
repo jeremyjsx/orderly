@@ -187,33 +187,37 @@ def _order_to_public(order) -> OrderPublic:
     for item in order.items or []:
         product_public = None
         if item.product:
+            product_price = float(item.product.price)
             product_public = ProductPublic(
                 id=item.product.id,
                 name=item.product.name,
                 description=item.product.description,
-                price=item.product.price,
+                price=product_price,
                 stock=item.product.stock,
                 category_id=item.product.category_id,
                 image_url=item.product.image_url,
                 is_active=item.product.is_active,
             )
 
+        item_price = float(item.price)
+        item_subtotal = float(item.subtotal)
         items.append(
             OrderItemPublic(
                 id=item.id,
                 product_id=item.product_id,
                 quantity=item.quantity,
-                price=item.price,
-                subtotal=item.subtotal,
+                price=item_price,
+                subtotal=item_subtotal,
                 product=product_public,
             )
         )
 
+    order_total = float(order.total)
     return OrderPublic(
         id=order.id,
         user_id=order.user_id,
         status=OrderStatus(order.status),
-        total=order.total,
+        total=order_total,
         items=items,
         created_at=order.created_at,
         updated_at=order.updated_at,

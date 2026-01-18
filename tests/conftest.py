@@ -26,26 +26,22 @@ async def db_session() -> AsyncGenerator[AsyncSession]:
     Each test gets a completely fresh database with tables created
     and dropped after the test completes.
     """
-    # Create engine for each test to avoid event loop issues
     engine = create_async_engine(
         TEST_DATABASE_URL,
         echo=False,
-        poolclass=NullPool,  # Avoid event loop issues with connection pooling
+        poolclass=NullPool,
     )
 
-    # Create all tables
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)  # Clean slate
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
-    # Create session
     session = AsyncSession(bind=engine, expire_on_commit=False)
 
     try:
         yield session
     finally:
         await session.close()
-        # Drop all tables after test
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
         await engine.dispose()

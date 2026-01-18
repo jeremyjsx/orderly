@@ -13,15 +13,9 @@ from app.modules.users.repo import (
     update_user_password,
 )
 from app.modules.users.schemas import PasswordChange, UserPublic, UserUpdate
+from app.modules.users.utils import get_role_value
 
 router = APIRouter(prefix="/users", tags=["users"])
-
-
-def _get_role_value(user: User) -> str:
-    """Get role value as string from user."""
-    if hasattr(user.role, "value"):
-        return user.role.value
-    return str(user.role)
 
 
 @router.get("/me", response_model=UserPublic)
@@ -32,7 +26,7 @@ async def get_my_profile(
     return UserPublic(
         id=current_user.id,
         email=current_user.email,
-        role=_get_role_value(current_user),
+        role=get_role_value(current_user),
     )
 
 
@@ -70,7 +64,7 @@ async def list_users_handler(
     users, total = await list_users(session, offset=offset, limit=limit)
 
     items = [
-        UserPublic(id=user.id, email=user.email, role=_get_role_value(user))
+        UserPublic(id=user.id, email=user.email, role=get_role_value(user))
         for user in users
     ]
 
@@ -96,7 +90,7 @@ async def get_user_handler(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    return UserPublic(id=user.id, email=user.email, role=_get_role_value(user))
+    return UserPublic(id=user.id, email=user.email, role=get_role_value(user))
 
 
 @router.patch("/{user_id}", response_model=UserPublic)
@@ -129,7 +123,7 @@ async def update_user_handler(
     return UserPublic(
         id=updated_user.id,
         email=updated_user.email,
-        role=_get_role_value(updated_user),
+        role=get_role_value(updated_user),
     )
 
 

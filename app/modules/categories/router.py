@@ -28,7 +28,12 @@ async def create_category_handler(
     session: SessionDep,
     admin_user: User = Depends(require_admin),
 ) -> CategoryPublic:
-    category = await create_category(session, payload)
+    try:
+        category = await create_category(session, payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(e)
+        ) from e
     return CategoryPublic(
         id=category.id,
         name=category.name,
@@ -118,7 +123,12 @@ async def update_category_handler(
     session: SessionDep,
     admin_user: User = Depends(require_admin),
 ) -> CategoryPublic:
-    category = await update_category(session, category_id, payload)
+    try:
+        category = await update_category(session, category_id, payload)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(e)
+        ) from e
     if not category:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"

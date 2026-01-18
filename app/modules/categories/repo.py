@@ -12,6 +12,10 @@ from app.modules.categories.schemas import CategoryCreate, CategoryUpdate
 async def create_category(
     session: SessionDep, category_data: CategoryCreate
 ) -> Category:
+    existing = await get_category_by_slug(session, category_data.slug)
+    if existing:
+        raise ValueError(f"Category with slug '{category_data.slug}' already exists")
+
     try:
         category = Category(
             id=uuid.uuid4(),
@@ -22,9 +26,9 @@ async def create_category(
         )
         session.add(category)
         await session.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         await session.rollback()
-        raise
+        raise ValueError(f"Category with slug '{category_data.slug}' already exists") from err
     await session.refresh(category)
     return category
 
@@ -81,6 +85,11 @@ async def update_category(
     if not category:
         return None
 
+    if category_data.slug is not None:
+        existing = await get_category_by_slug(session, category_data.slug)
+        if existing and existing.id != category_id:
+            raise ValueError(f"Category with slug '{category_data.slug}' already exists")
+
     try:
         if category_data.name is not None:
             category.name = category_data.name
@@ -93,9 +102,12 @@ async def update_category(
 
         await session.commit()
         await session.refresh(category)
-    except IntegrityError:
+    except IntegrityError as err:
         await session.rollback()
-        raise
+
+        if category_data.slug is not None:
+            raise ValueError(f"Category with slug '{category_data.slug}' already exists") from err
+        raise ValueError("Database integrity constraint violation") from err
     return category
 
 

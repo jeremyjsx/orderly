@@ -50,20 +50,20 @@ async def _setup_test_db():
 @pytest_asyncio.fixture(scope="function")
 async def db_session(_setup_test_db) -> AsyncGenerator[AsyncSession]:
     """Create a fresh database session for each test with transaction rollback."""
-    async with test_engine.connect() as connection:
-        trans = await connection.begin()
-        async with TestSessionLocal(bind=connection) as session:
-            yield session
-            await trans.rollback()
+    async with TestSessionLocal() as session:
+        yield session
+        await session.rollback()
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
+async def client(_setup_test_db) -> AsyncGenerator[AsyncClient]:
     """Create a test client with database override."""
     app = create_app()
 
     async def override_get_db():
-        yield db_session
+        async with TestSessionLocal() as session:
+            yield session
+            await session.rollback()
 
     from app.db.session import get_db
 

@@ -161,7 +161,8 @@ async def create_order_from_cart(
         else:
             logger.warning(
                 f"Failed to publish order.created event for order {order.id} "
-                f"(RabbitMQ may be unavailable, event will be retried by outbox pattern if implemented)"
+                f"(RabbitMQ may be unavailable, event will be retried by "
+                f"outbox pattern if implemented)"
             )
     except ValueError as e:
         logger.error(

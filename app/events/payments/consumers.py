@@ -4,7 +4,6 @@ import logging
 import signal
 import uuid
 from datetime import UTC, datetime
-from typing import Set
 
 import aio_pika
 from aio_pika.abc import AbstractExchange, AbstractIncomingMessage
@@ -15,7 +14,7 @@ from app.events.payments.events import PaymentProcessedEvent, PaymentProcessedPa
 
 logger = logging.getLogger(__name__)
 
-_processed_events: Set[uuid.UUID] = set()
+_processed_events: set[uuid.UUID] = set()
 
 MAX_RETRY_ATTEMPTS = 3
 RETRY_DELAY_BASE = 1.0
@@ -24,13 +23,13 @@ RETRY_DELAY_BASE = 1.0
 async def process_payment(order_event: OrderCreatedEvent) -> PaymentProcessedEvent:
     """
     Process payment for an order.
-    
+
     Args:
         order_event: The order created event
-        
+
     Returns:
         PaymentProcessedEvent with payment details
-        
+
     Raises:
         ValueError: If order data is invalid
     """
@@ -73,11 +72,11 @@ async def publish_payment_event(
 ) -> None:
     """
     Publish payment processed event to RabbitMQ.
-    
+
     Args:
         exchange: RabbitMQ exchange
         payment_event: The payment event to publish
-        
+
     Raises:
         Exception: If publishing fails
     """
@@ -129,14 +128,14 @@ async def handle_order_created(
 ) -> None:
     """
     Handle order.created event with retry logic and idempotency.
-    
+
     Args:
         message: The incoming RabbitMQ message
         exchange: RabbitMQ exchange for publishing responses
     """
     event_id: uuid.UUID | None = None
     retry_count = 0
-    
+
     try:
         body = json.loads(message.body.decode())
         order_event = OrderCreatedEvent(**body)
@@ -154,7 +153,9 @@ async def handle_order_created(
             await message.ack()
             return
 
-        retry_count = int(message.headers.get("x-retry-count", 0)) if message.headers else 0
+        retry_count = (
+            int(message.headers.get("x-retry-count", 0)) if message.headers else 0
+        )
 
         payment_event = await process_payment(order_event)
         await publish_payment_event(exchange, payment_event)
@@ -183,9 +184,10 @@ async def handle_order_created(
         if retry_count < MAX_RETRY_ATTEMPTS:
             retry_count += 1
             delay = RETRY_DELAY_BASE * (2 ** (retry_count - 1))
-            
+
             logger.info(
-                f"Retrying event {event_id} (attempt {retry_count}/{MAX_RETRY_ATTEMPTS}) "
+                f"Retrying event {event_id} "
+                f"(attempt {retry_count}/{MAX_RETRY_ATTEMPTS}) "
                 f"after {delay}s"
             )
 
@@ -196,9 +198,7 @@ async def handle_order_created(
             await message.reject(requeue=True)
             await asyncio.sleep(delay)
         else:
-            logger.error(
-                f"Max retries exceeded for event {event_id}, sending to DLQ"
-            )
+            logger.error(f"Max retries exceeded for event {event_id}, sending to DLQ")
             await message.reject(requeue=False)
 
 

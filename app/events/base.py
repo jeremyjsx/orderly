@@ -1,13 +1,12 @@
 import uuid
 from datetime import UTC, datetime
-from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 
 class Event(BaseModel):
     """Base class for all domain events in the system."""
-    
+
     event_id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
         description="Unique identifier for this event instance",
@@ -24,9 +23,7 @@ class Event(BaseModel):
         default_factory=lambda: datetime.now(UTC),
         description="Timestamp when the event occurred",
     )
-    producer: str = Field(
-        description="Service or component that produced this event"
-    )
+    producer: str = Field(description="Service or component that produced this event")
 
     @field_validator("event_type")
     @classmethod
@@ -36,7 +33,8 @@ class Event(BaseModel):
             raise ValueError("event_type cannot be empty")
         if "." not in v:
             raise ValueError(
-                "event_type should follow pattern 'domain.action' (e.g., 'order.created')"
+                "event_type should follow pattern 'domain.action' "
+                "(e.g., 'order.created')"
             )
         return v.strip()
 

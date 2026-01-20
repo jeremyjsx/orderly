@@ -149,9 +149,30 @@ async def create_order_from_cart(
 
     try:
         event = order_to_created_event(order)
-        await publish_event(event, routing_key="order.created")
+        published = await publish_event(
+            event,
+            routing_key="order.created",
+            correlation_id=str(order.id),
+        )
+        if published:
+            logger.info(
+                f"Successfully published order.created event for order {order.id}"
+            )
+        else:
+            logger.warning(
+                f"Failed to publish order.created event for order {order.id} "
+                f"(RabbitMQ may be unavailable, event will be retried by outbox pattern if implemented)"
+            )
+    except ValueError as e:
+        logger.error(
+            f"Invalid order data for event creation (order {order.id}): {e}",
+            exc_info=True,
+        )
     except Exception as e:
-        logger.error(f"Failed to publish order.created event: {e}", exc_info=True)
+        logger.error(
+            f"Failed to publish order.created event for order {order.id}: {e}",
+            exc_info=True,
+        )
 
     return order
 

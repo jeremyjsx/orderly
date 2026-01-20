@@ -13,36 +13,34 @@ logger = logging.getLogger(__name__)
 def order_to_created_event(order: Order) -> OrderCreatedEvent:
     """
     Convert an Order model to an OrderCreatedEvent.
-    
+
     Args:
         order: The order model to convert
-        
+
     Returns:
         OrderCreatedEvent with order data
-        
+
     Raises:
         ValueError: If order data is invalid
     """
     if not order.id:
         raise ValueError("Order ID is required")
-    
+
     if not order.user_id:
         raise ValueError("User ID is required")
-    
+
     if order.total is None or float(order.total) <= 0:
         raise ValueError(f"Invalid order total: {order.total}")
-    
-    items = []
+
     if not order.items:
         logger.warning(f"Order {order.id} has no items, creating event anyway")
-
+    else:
+        items = []
         for item in order.items:
             if not item.product_id:
-                logger.warning(
-                    f"Order item {item.id} has no product_id, skipping"
-                )
+                logger.warning(f"Order item {item.id} has no product_id, skipping")
                 continue
-                
+
             product_public = None
             if item.product:
                 product_public = ProductPublic(

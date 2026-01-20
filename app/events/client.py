@@ -1,5 +1,4 @@
 import logging
-from typing import Any
 
 import aio_pika
 from aio_pika.abc import (
@@ -28,7 +27,7 @@ async def connect() -> None:
         _connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
         _channel = await _connection.channel()
         await _channel.set_publisher_confirms(True)
-        
+
         _exchange = await _channel.declare_exchange(
             "orderly_events", aio_pika.ExchangeType.TOPIC, durable=True
         )
@@ -55,7 +54,7 @@ async def connect() -> None:
         await payment_processed_queue.bind(_exchange, routing_key="payment.processed")
         _queues["payment_processed"] = payment_processed_queue
 
-        dlx = await _channel.declare_exchange(
+        await _channel.declare_exchange(
             "orderly_events_dlx", aio_pika.ExchangeType.TOPIC, durable=True
         )
 

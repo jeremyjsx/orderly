@@ -114,6 +114,7 @@ async def get_my_orders(
         has_more=(offset + limit) < total,
     )
 
+
 @router.get("/available", response_model=PaginatedResponse[OrderPublic])
 async def get_available_orders(
     session: SessionDep,
@@ -135,6 +136,7 @@ async def get_available_orders(
         has_more=(offset + limit) < total,
     )
 
+
 @router.get("/my-deliveries", response_model=PaginatedResponse[OrderPublic])
 async def get_my_deliveries(
     session: SessionDep,
@@ -144,7 +146,9 @@ async def get_my_deliveries(
         default=10, ge=1, le=100, description="Maximum number of records"
     ),
 ) -> PaginatedResponse[OrderPublic]:
-    orders, total = await list_my_deliveries(session, driver_user.id, offset=offset, limit=limit)
+    orders, total = await list_my_deliveries(
+        session, driver_user.id, offset=offset, limit=limit
+    )
 
     items = [_order_to_public(order) for order in orders]
 
@@ -155,6 +159,7 @@ async def get_my_deliveries(
         limit=limit,
         has_more=(offset + limit) < total,
     )
+
 
 @router.get("/{order_id}", response_model=OrderPublic)
 async def get_order(
@@ -267,6 +272,7 @@ def _order_to_public(order) -> OrderPublic:
         updated_at=order.updated_at,
         driver_id=order.driver_id,
     )
+
 
 @router.patch("/{order_id}/assign", response_model=OrderPublic)
 async def assign_driver_to_order_handler(

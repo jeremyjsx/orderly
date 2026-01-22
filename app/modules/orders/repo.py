@@ -242,12 +242,16 @@ async def list_all_orders(
 
     return orders, total
 
+
 async def list_available_orders(
     session: SessionDep,
     offset: int = 0,
     limit: int = 10,
 ) -> tuple[Sequence[Order], int]:
-    query = select(Order).where(Order.driver_id.is_(None), Order.status.in_([OrderStatus.PENDING.value, OrderStatus.PROCESSING.value]))
+    query = select(Order).where(
+        Order.driver_id.is_(None),
+        Order.status.in_([OrderStatus.PENDING.value, OrderStatus.PROCESSING.value]),
+    )
 
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await session.execute(count_query)
@@ -262,6 +266,7 @@ async def list_available_orders(
     result = await session.execute(query)
     orders = result.scalars().all()
     return orders, total
+
 
 async def list_my_deliveries(
     session: SessionDep,
@@ -282,6 +287,7 @@ async def list_my_deliveries(
     result = await session.execute(query)
     orders = result.scalars().all()
     return orders, total
+
 
 async def update_order_status(
     session: SessionDep, order_id: uuid.UUID, status: OrderStatus
@@ -331,14 +337,19 @@ async def cancel_order(session: SessionDep, order_id: uuid.UUID) -> Order:
     await session.refresh(order)
     return order
 
-async def assign_driver_to_order(session: SessionDep, order_id: uuid.UUID, driver_id: uuid.UUID) -> Order:
+
+async def assign_driver_to_order(
+    session: SessionDep, order_id: uuid.UUID, driver_id: uuid.UUID
+) -> Order:
     order = await get_order_by_id(session, order_id)
 
     if not order:
         raise ValueError(f"Order with id {order_id} not found")
 
     if order.status not in [OrderStatus.PENDING.value, OrderStatus.PROCESSING.value]:
-        raise ValueError(f"Order with id {order_id} is not in a valid status for assignment")
+        raise ValueError(
+            f"Order with id {order_id} is not in a valid status for assignment"
+        )
 
     if order.driver_id is not None:
         raise ValueError(f"Order with id {order_id} already has a driver assigned")
@@ -350,6 +361,6 @@ async def assign_driver_to_order(session: SessionDep, order_id: uuid.UUID, drive
     except IntegrityError:
         await session.rollback()
         raise
-    
+
     await session.refresh(order)
     return order

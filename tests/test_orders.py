@@ -164,12 +164,14 @@ async def test_create_order_success(client: AsyncClient, user_token: str, db_ses
     cart_data = cart_response.json()
     assert len(cart_data["items"]) == 0
 
+
 @pytest.mark.asyncio
 async def test_assign_driver_requires_auth(client: AsyncClient):
     """Test that assigning driver requires authentication."""
     order_id = uuid.uuid4()
     response = await client.patch(f"/api/v1/orders/{order_id}/assign")
     assert response.status_code == 401
+
 
 @pytest.mark.asyncio
 async def test_assign_driver_to_order_success(
@@ -188,14 +190,13 @@ async def test_assign_driver_to_order_success(
     await db_session.commit()
 
     headers = {"Authorization": f"Bearer {driver_token}"}
-    response = await client.patch(
-        f"/api/v1/orders/{order.id}/assign", headers=headers
-    )
-    
+    response = await client.patch(f"/api/v1/orders/{order.id}/assign", headers=headers)
+
     assert response.status_code == 200
     data = response.json()
     assert data["driver_id"] is not None
     assert data["id"] == str(order.id)
+
 
 @pytest.mark.asyncio
 async def test_list_available_orders_requires_driver(
@@ -221,7 +222,7 @@ async def test_list_available_orders(
         total=100.0,
         driver_id=None,
     )
-    
+
     order2 = Order(
         id=uuid.uuid4(),
         user_id=test_user.id,
@@ -229,7 +230,7 @@ async def test_list_available_orders(
         total=200.0,
         driver_id=None,
     )
-    
+
     order3 = Order(
         id=uuid.uuid4(),
         user_id=test_user.id,
@@ -237,13 +238,13 @@ async def test_list_available_orders(
         total=300.0,
         driver_id=uuid.uuid4(),
     )
-    
+
     db_session.add_all([order1, order2, order3])
     await db_session.commit()
 
     headers = {"Authorization": f"Bearer {driver_token}"}
     response = await client.get("/api/v1/orders/available", headers=headers)
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 2
@@ -254,9 +255,14 @@ async def test_list_available_orders(
     assert str(order2.id) in order_ids
     assert str(order3.id) not in order_ids
 
+
 @pytest.mark.asyncio
 async def test_list_my_deliveries(
-    client: AsyncClient, driver_token: str, test_driver: User, test_user: User, db_session
+    client: AsyncClient,
+    driver_token: str,
+    test_driver: User,
+    test_user: User,
+    db_session,
 ):
     """Test listing driver's assigned orders."""
     from app.modules.orders.models import Order, OrderStatus
@@ -268,7 +274,7 @@ async def test_list_my_deliveries(
         total=100.0,
         driver_id=test_driver.id,
     )
-    
+
     order2 = Order(
         id=uuid.uuid4(),
         user_id=test_user.id,
@@ -276,7 +282,7 @@ async def test_list_my_deliveries(
         total=200.0,
         driver_id=test_driver.id,
     )
-    
+
     other_driver_id = uuid.uuid4()
     order3 = Order(
         id=uuid.uuid4(),
@@ -285,13 +291,13 @@ async def test_list_my_deliveries(
         total=300.0,
         driver_id=other_driver_id,
     )
-    
+
     db_session.add_all([order1, order2, order3])
     await db_session.commit()
 
     headers = {"Authorization": f"Bearer {driver_token}"}
     response = await client.get("/api/v1/orders/my-deliveries", headers=headers)
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 2
@@ -301,6 +307,7 @@ async def test_list_my_deliveries(
     assert str(order1.id) in order_ids
     assert str(order2.id) in order_ids
     assert str(order3.id) not in order_ids
+
 
 @pytest.mark.asyncio
 async def test_assign_driver_order_already_assigned(
@@ -321,10 +328,8 @@ async def test_assign_driver_order_already_assigned(
     await db_session.commit()
 
     headers = {"Authorization": f"Bearer {driver_token}"}
-    response = await client.patch(
-        f"/api/v1/orders/{order.id}/assign", headers=headers
-    )
-    
+    response = await client.patch(f"/api/v1/orders/{order.id}/assign", headers=headers)
+
     assert response.status_code == 400
     assert "already has a driver assigned" in response.json()["detail"].lower()
 
@@ -347,12 +352,11 @@ async def test_assign_driver_invalid_status(
     await db_session.commit()
 
     headers = {"Authorization": f"Bearer {driver_token}"}
-    response = await client.patch(
-        f"/api/v1/orders/{order.id}/assign", headers=headers
-    )
-    
+    response = await client.patch(f"/api/v1/orders/{order.id}/assign", headers=headers)
+
     assert response.status_code == 400
     assert "not in a valid status" in response.json()["detail"].lower()
+
 
 @pytest.mark.asyncio
 async def test_create_order_insufficient_stock(

@@ -1,17 +1,18 @@
 import uuid
 from datetime import datetime
 from enum import Enum as EnumType
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import TYPE_CHECKING
 
 from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.modules.products.models import Product
     from app.modules.users.models import User
+
 
 class OrderStatus(EnumType):
     PENDING = "pending"
@@ -53,7 +54,9 @@ class Order(Base):
         nullable=True,
         index=True,
     )
-    driver: Mapped["User"] = relationship("User", foreign_keys=[driver_id], back_populates="orders")
+    driver: Mapped["User"] = relationship(
+        "User", foreign_keys=[driver_id], back_populates="orders"
+    )
 
 
 class OrderItem(Base):

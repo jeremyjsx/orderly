@@ -362,5 +362,7 @@ async def assign_driver_to_order(
         await session.rollback()
         raise
 
-    await session.refresh(order)
-    return order
+    reloaded_order = await get_order_by_id(session, order_id)
+    if not reloaded_order:
+        raise ValueError(f"Order with id {order_id} not found after assignment")
+    return reloaded_order

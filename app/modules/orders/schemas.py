@@ -28,6 +28,7 @@ class OrderPublic(BaseModel):
     items: list[OrderItemPublic]
     created_at: datetime
     updated_at: datetime
+    driver_id: uuid.UUID | None = None
 
 
 class OrderStatusUpdate(BaseModel):

@@ -4,9 +4,10 @@ from enum import Enum as EnumType
 
 from sqlalchemy import DateTime, String, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.modules.orders.models import Order
 
 
 class Role(EnumType):
@@ -35,3 +36,4 @@ class User(Base):
     role: Mapped[Role] = mapped_column(
         String(10), nullable=False, default=Role.USER.value
     )
+    orders: Mapped[list["Order"]] = relationship("Order", foreign_keys="Order.driver_id", back_populates="driver")

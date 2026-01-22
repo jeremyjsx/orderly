@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.modules.products.models import Product
-
+from app.modules.users.models import User
 
 class OrderStatus(EnumType):
     PENDING = "pending"
@@ -44,6 +44,13 @@ class Order(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+    driver_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,
+    )
+    driver: Mapped["User"] = relationship("User", foreign_keys=[driver_id], back_populates="orders")
 
 
 class OrderItem(Base):

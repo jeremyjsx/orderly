@@ -210,7 +210,11 @@ async def test_list_available_orders_requires_driver(
 
 @pytest.mark.asyncio
 async def test_list_available_orders(
-    client: AsyncClient, driver_token: str, test_user: User, db_session
+    client: AsyncClient,
+    driver_token: str,
+    test_user: User,
+    test_driver: User,
+    db_session,
 ):
     """Test listing available orders for drivers."""
     from app.modules.orders.models import Order, OrderStatus
@@ -236,7 +240,7 @@ async def test_list_available_orders(
         user_id=test_user.id,
         status=OrderStatus.PENDING.value,
         total=300.0,
-        driver_id=uuid.uuid4(),
+        driver_id=test_driver.id,
     )
 
     db_session.add_all([order1, order2, order3])
@@ -265,7 +269,9 @@ async def test_list_my_deliveries(
     db_session,
 ):
     """Test listing driver's assigned orders."""
+    from app.core.security import hash_password
     from app.modules.orders.models import Order, OrderStatus
+    from app.modules.users.models import Role, User
 
     order1 = Order(
         id=uuid.uuid4(),
@@ -283,13 +289,21 @@ async def test_list_my_deliveries(
         driver_id=test_driver.id,
     )
 
-    other_driver_id = uuid.uuid4()
+    other_driver = User(
+        id=uuid.uuid4(),
+        email="otherdriver@example.com",
+        hashed_password=hash_password("password123"),
+        role=Role.DRIVER.value,
+    )
+    db_session.add(other_driver)
+    await db_session.flush()
+
     order3 = Order(
         id=uuid.uuid4(),
         user_id=test_user.id,
         status=OrderStatus.PENDING.value,
         total=300.0,
-        driver_id=other_driver_id,
+        driver_id=other_driver.id,
     )
 
     db_session.add_all([order1, order2, order3])
@@ -311,18 +325,32 @@ async def test_list_my_deliveries(
 
 @pytest.mark.asyncio
 async def test_assign_driver_order_already_assigned(
-    client: AsyncClient, driver_token: str, test_user: User, db_session
+    client: AsyncClient,
+    driver_token: str,
+    test_user: User,
+    test_driver: User,
+    db_session,
 ):
     """Test that assigning driver fails when order already has a driver."""
+    from app.core.security import hash_password
     from app.modules.orders.models import Order, OrderStatus
+    from app.modules.users.models import Role, User
 
-    existing_driver_id = uuid.uuid4()
+    existing_driver = User(
+        id=uuid.uuid4(),
+        email="existingdriver@example.com",
+        hashed_password=hash_password("password123"),
+        role=Role.DRIVER.value,
+    )
+    db_session.add(existing_driver)
+    await db_session.flush()
+
     order = Order(
         id=uuid.uuid4(),
         user_id=test_user.id,
         status=OrderStatus.PENDING.value,
         total=100.0,
-        driver_id=existing_driver_id,
+        driver_id=existing_driver.id,
     )
     db_session.add(order)
     await db_session.commit()

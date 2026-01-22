@@ -243,6 +243,52 @@ async def list_all_orders(
     return orders, total
 
 
+async def list_available_orders(
+    session: SessionDep,
+    offset: int = 0,
+    limit: int = 10,
+) -> tuple[Sequence[Order], int]:
+    query = select(Order).where(
+        Order.driver_id.is_(None),
+        Order.status.in_([OrderStatus.PENDING.value, OrderStatus.PROCESSING.value]),
+    )
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await session.execute(count_query)
+    total = total_result.scalar_one()
+
+    query = (
+        query.options(selectinload(Order.items).selectinload(OrderItem.product))
+        .offset(offset)
+        .limit(limit)
+        .order_by(Order.created_at.desc())
+    )
+    result = await session.execute(query)
+    orders = result.scalars().all()
+    return orders, total
+
+
+async def list_my_deliveries(
+    session: SessionDep,
+    driver_id: uuid.UUID,
+    offset: int = 0,
+    limit: int = 10,
+) -> tuple[Sequence[Order], int]:
+    query = select(Order).where(Order.driver_id == driver_id)
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await session.execute(count_query)
+    total = total_result.scalar_one()
+    query = (
+        query.options(selectinload(Order.items).selectinload(OrderItem.product))
+        .offset(offset)
+        .limit(limit)
+        .order_by(Order.created_at.desc())
+    )
+    result = await session.execute(query)
+    orders = result.scalars().all()
+    return orders, total
+
+
 async def update_order_status(
     session: SessionDep, order_id: uuid.UUID, status: OrderStatus
 ) -> Order:
@@ -290,3 +336,33 @@ async def cancel_order(session: SessionDep, order_id: uuid.UUID) -> Order:
 
     await session.refresh(order)
     return order
+
+
+async def assign_driver_to_order(
+    session: SessionDep, order_id: uuid.UUID, driver_id: uuid.UUID
+) -> Order:
+    order = await get_order_by_id(session, order_id)
+
+    if not order:
+        raise ValueError(f"Order with id {order_id} not found")
+
+    if order.status not in [OrderStatus.PENDING.value, OrderStatus.PROCESSING.value]:
+        raise ValueError(
+            f"Order with id {order_id} is not in a valid status for assignment"
+        )
+
+    if order.driver_id is not None:
+        raise ValueError(f"Order with id {order_id} already has a driver assigned")
+
+    order.driver_id = driver_id
+
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise
+
+    reloaded_order = await get_order_by_id(session, order_id)
+    if not reloaded_order:
+        raise ValueError(f"Order with id {order_id} not found after assignment")
+    return reloaded_order

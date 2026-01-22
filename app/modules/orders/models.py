@@ -1,13 +1,17 @@
 import uuid
 from datetime import datetime
 from enum import Enum as EnumType
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.modules.products.models import Product
+
+if TYPE_CHECKING:
+    from app.modules.products.models import Product
+    from app.modules.users.models import User
 
 
 class OrderStatus(EnumType):
@@ -43,6 +47,15 @@ class Order(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+    driver_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,
+    )
+    driver: Mapped["User"] = relationship(
+        "User", foreign_keys=[driver_id], back_populates="orders"
     )
 
 

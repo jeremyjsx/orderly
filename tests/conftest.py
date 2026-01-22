@@ -94,6 +94,21 @@ async def test_admin(db_session: AsyncSession) -> User:
     return user
 
 
+@pytest_asyncio.fixture
+async def test_driver(db_session: AsyncSession) -> User:
+    """Create a test driver user."""
+    user = User(
+        id=uuid.uuid4(),
+        email="driver@example.com",
+        hashed_password=hash_password("driverpassword123"),
+        role=Role.DRIVER.value,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
 @pytest.fixture
 def user_token(test_user: User) -> str:
     """Create a JWT token for test user."""
@@ -104,3 +119,9 @@ def user_token(test_user: User) -> str:
 def admin_token(test_admin: User) -> str:
     """Create a JWT token for test admin."""
     return create_access_token(test_admin.id)
+
+
+@pytest.fixture
+def driver_token(test_driver: User) -> str:
+    """Create a JWT token for test driver."""
+    return create_access_token(test_driver.id)

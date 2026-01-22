@@ -2,16 +2,19 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.api.deps import SessionDep, get_current_user, require_admin
+from app.api.deps import SessionDep, get_current_user, require_admin, require_driver
 from app.core.schemas import PaginatedResponse
 from app.modules.cart.repo import get_cart_by_user_id
 from app.modules.orders.models import OrderStatus
 from app.modules.orders.repo import (
+    assign_driver_to_order,
     cancel_order,
     create_order_from_cart,
     get_order_by_id,
     get_user_orders,
     list_all_orders,
+    list_available_orders,
+    list_my_deliveries,
     update_order_status,
 )
 from app.modules.orders.schemas import (
@@ -99,6 +102,52 @@ async def get_my_orders(
     status_value = order_status.value if order_status else None
     orders, total = await get_user_orders(
         session, current_user.id, offset=offset, limit=limit, status=status_value
+    )
+
+    items = [_order_to_public(order) for order in orders]
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        offset=offset,
+        limit=limit,
+        has_more=(offset + limit) < total,
+    )
+
+
+@router.get("/available", response_model=PaginatedResponse[OrderPublic])
+async def get_available_orders(
+    session: SessionDep,
+    driver_user: User = Depends(require_driver),
+    offset: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(
+        default=10, ge=1, le=100, description="Maximum number of records"
+    ),
+) -> PaginatedResponse[OrderPublic]:
+    orders, total = await list_available_orders(session, offset=offset, limit=limit)
+
+    items = [_order_to_public(order) for order in orders]
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        offset=offset,
+        limit=limit,
+        has_more=(offset + limit) < total,
+    )
+
+
+@router.get("/my-deliveries", response_model=PaginatedResponse[OrderPublic])
+async def get_my_deliveries(
+    session: SessionDep,
+    driver_user: User = Depends(require_driver),
+    offset: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(
+        default=10, ge=1, le=100, description="Maximum number of records"
+    ),
+) -> PaginatedResponse[OrderPublic]:
+    orders, total = await list_my_deliveries(
+        session, driver_user.id, offset=offset, limit=limit
     )
 
     items = [_order_to_public(order) for order in orders]
@@ -221,4 +270,22 @@ def _order_to_public(order) -> OrderPublic:
         items=items,
         created_at=order.created_at,
         updated_at=order.updated_at,
+        driver_id=order.driver_id,
     )
+
+
+@router.patch("/{order_id}/assign", response_model=OrderPublic)
+async def assign_driver_to_order_handler(
+    order_id: uuid.UUID,
+    session: SessionDep,
+    driver_user: User = Depends(require_driver),
+) -> OrderPublic:
+    try:
+        assigned_order = await assign_driver_to_order(session, order_id, driver_user.id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+
+    return _order_to_public(assigned_order)

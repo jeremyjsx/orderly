@@ -114,6 +114,47 @@ async def get_my_orders(
         has_more=(offset + limit) < total,
     )
 
+@router.get("/available", response_model=PaginatedResponse[OrderPublic])
+async def get_available_orders(
+    session: SessionDep,
+    driver_user: User = Depends(require_driver),
+    offset: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(
+        default=10, ge=1, le=100, description="Maximum number of records"
+    ),
+) -> PaginatedResponse[OrderPublic]:
+    orders, total = await list_available_orders(session, offset=offset, limit=limit)
+
+    items = [_order_to_public(order) for order in orders]
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        offset=offset,
+        limit=limit,
+        has_more=(offset + limit) < total,
+    )
+
+@router.get("/my-deliveries", response_model=PaginatedResponse[OrderPublic])
+async def get_my_deliveries(
+    session: SessionDep,
+    driver_user: User = Depends(require_driver),
+    offset: int = Query(default=0, ge=0, description="Number of records to skip"),
+    limit: int = Query(
+        default=10, ge=1, le=100, description="Maximum number of records"
+    ),
+) -> PaginatedResponse[OrderPublic]:
+    orders, total = await list_my_deliveries(session, driver_user.id, offset=offset, limit=limit)
+
+    items = [_order_to_public(order) for order in orders]
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        offset=offset,
+        limit=limit,
+        has_more=(offset + limit) < total,
+    )
 
 @router.get("/{order_id}", response_model=OrderPublic)
 async def get_order(
@@ -242,45 +283,3 @@ async def assign_driver_to_order_handler(
         ) from e
 
     return _order_to_public(assigned_order)
-
-@router.get("/available", response_model=PaginatedResponse[OrderPublic])
-async def get_available_orders(
-    session: SessionDep,
-    driver_user: User = Depends(require_driver),
-    offset: int = Query(default=0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        default=10, ge=1, le=100, description="Maximum number of records"
-    ),
-) -> PaginatedResponse[OrderPublic]:
-    orders, total = await list_available_orders(session, offset=offset, limit=limit)
-
-    items = [_order_to_public(order) for order in orders]
-
-    return PaginatedResponse(
-        items=items,
-        total=total,
-        offset=offset,
-        limit=limit,
-        has_more=(offset + limit) < total,
-    )
-
-@router.get("/my-deliveries", response_model=PaginatedResponse[OrderPublic])
-async def get_my_deliveries(
-    session: SessionDep,
-    driver_user: User = Depends(require_driver),
-    offset: int = Query(default=0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        default=10, ge=1, le=100, description="Maximum number of records"
-    ),
-) -> PaginatedResponse[OrderPublic]:
-    orders, total = await list_my_deliveries(session, driver_user.id, offset=offset, limit=limit)
-
-    items = [_order_to_public(order) for order in orders]
-
-    return PaginatedResponse(
-        items=items,
-        total=total,
-        offset=offset,
-        limit=limit,
-        has_more=(offset + limit) < total,
-    )

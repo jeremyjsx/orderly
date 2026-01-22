@@ -5,10 +5,13 @@ from enum import Enum as EnumType
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import TYPE_CHECKING
 
 from app.db.base import Base
-from app.modules.products.models import Product
-from app.modules.users.models import User
+
+if TYPE_CHECKING:
+    from app.modules.products.models import Product
+    from app.modules.users.models import User
 
 class OrderStatus(EnumType):
     PENDING = "pending"

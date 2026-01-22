@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 import uuid
 from datetime import datetime
 from enum import Enum as EnumType
@@ -7,7 +8,9 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.modules.orders.models import Order
+
+if TYPE_CHECKING:
+    from app.modules.orders.models import Order
 
 
 class Role(EnumType):

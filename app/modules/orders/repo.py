@@ -290,3 +290,26 @@ async def cancel_order(session: SessionDep, order_id: uuid.UUID) -> Order:
 
     await session.refresh(order)
     return order
+
+async def assign_driver_to_order(session: SessionDep, order_id: uuid.UUID, driver_id: uuid.UUID) -> Order:
+    order = await get_order_by_id(session, order_id)
+
+    if not order:
+        raise ValueError(f"Order with id {order_id} not found")
+
+    if order.status not in [OrderStatus.PENDING.value, OrderStatus.PROCESSING.value]:
+        raise ValueError(f"Order with id {order_id} is not in a valid status for assignment")
+
+    if order.driver_id is not None:
+        raise ValueError(f"Order with id {order_id} already has a driver assigned")
+
+    order.driver_id = driver_id
+
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise
+    
+    await session.refresh(order)
+    return order

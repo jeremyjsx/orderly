@@ -12,6 +12,7 @@ from app.db.base import Base
 class Role(EnumType):
     ADMIN = "admin"
     USER = "user"
+    DRIVER = "driver"
 
 
 class User(Base):

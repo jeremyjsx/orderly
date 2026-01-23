@@ -1,8 +1,12 @@
 import asyncio
+import logging
 import uuid
 from collections import defaultdict
 
 from fastapi import WebSocket
+
+
+logger = logging.getLogger(__name__)
 
 
 class WebSocketConnectionManager:
@@ -16,7 +20,11 @@ class WebSocketConnectionManager:
 
     async def connect(self, websocket: WebSocket, user_id: uuid.UUID) -> None:
         """Register a new WebSocket connection for a user"""
-        pass
+        await websocket.accept()
+        async with self._lock:
+            self.active_connections[user_id].add(websocket)
+            self.websocket_to_user[websocket] = user_id
+            logger.info(f"User {user_id} connected via WebSocket")
 
     async def disconnect(self, websocket: WebSocket) -> None:
         """Remove a WebSocket connection"""

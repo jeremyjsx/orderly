@@ -53,7 +53,14 @@ class WebSocketConnectionManager:
         self, websocket: WebSocket, order_id: uuid.UUID
     ) -> None:
         """Subscribe a WebSocket connection to updates for a specific order"""
-        pass
+        user_id = self.websocket_to_user.get(websocket)
+        if not user_id:
+            logger.warning("WebSocket connection not found in registry")
+            return
+
+        async with self._lock:
+            self.order_subscriptions[order_id].add(websocket)
+            logger.info(f"User {user_id} subscribed to order {order_id}")
 
     async def broadcast_to_order(self, order_id: uuid.UUID, message: dict) -> None:
         """Send a message to all WebSocket connections subscribed to an order."""

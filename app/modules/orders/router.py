@@ -1,9 +1,24 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 
-from app.api.deps import SessionDep, get_current_user, require_admin, require_driver
+from app.api.deps import (
+    SessionDep,
+    get_current_user,
+    get_current_user_websocket,
+    require_admin,
+    require_driver,
+)
 from app.core.schemas import PaginatedResponse
+from app.events.orders.websocket_manager import get_websocket_manager
 from app.modules.cart.repo import get_cart_by_user_id
 from app.modules.orders.models import OrderStatus
 from app.modules.orders.repo import (
@@ -24,7 +39,7 @@ from app.modules.orders.schemas import (
     OrderStatusUpdate,
 )
 from app.modules.products.schemas import ProductPublic
-from app.modules.users.models import User
+from app.modules.users.models import Role, User
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -159,6 +174,46 @@ async def get_my_deliveries(
         limit=limit,
         has_more=(offset + limit) < total,
     )
+
+
+@router.websocket("/ws/{order_id}")
+async def track_order(
+    websocket: WebSocket,
+    order_id: uuid.UUID,
+    session: SessionDep,
+):
+    current_user = await get_current_user_websocket(websocket, session)
+
+    order = await get_order_by_id(session, order_id)
+    if not order:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketDisconnect("Order not found")
+
+    match current_user.role:
+        case Role.ADMIN.value:
+            has_permission = True
+        case Role.USER.value:
+            has_permission = order.user_id == current_user.id
+        case Role.DRIVER.value:
+            has_permission = order.driver_id == current_user.id
+        case _:
+            has_permission = False
+
+    if not has_permission:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketDisconnect("You don't have permission to view this order")
+
+    manager = get_websocket_manager()
+    await manager.connect(websocket, current_user.id)
+    await manager.subscribe_to_order(websocket, order_id)
+
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await manager.disconnect(websocket)
 
 
 @router.get("/{order_id}", response_model=OrderPublic)

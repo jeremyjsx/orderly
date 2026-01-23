@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import uuid
 from collections import defaultdict
@@ -64,4 +65,21 @@ class WebSocketConnectionManager:
 
     async def broadcast_to_order(self, order_id: uuid.UUID, message: dict) -> None:
         """Send a message to all WebSocket connections subscribed to an order."""
-        pass
+        subscribers = self.order_subscriptions.get(order_id)
+        if not subscribers:
+            logger.warning(f"No subscribers found for order {order_id}")
+            return
+
+        json_message = json.dumps(message, default=str)
+        sent_count = 0
+        for subscriber in list(subscribers):
+            try:
+                await subscriber.send_text(json_message)
+                sent_count += 1
+            except Exception as e:
+                logger.error(f"Error sending message to subscriber: {e}")
+                subscribers.discard(subscriber)
+
+        logger.info(
+            f"Broadcasted message to {sent_count} subscribers for order {order_id}"
+        )

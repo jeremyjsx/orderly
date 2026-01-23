@@ -5,7 +5,6 @@ from collections import defaultdict
 
 from fastapi import WebSocket
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +27,27 @@ class WebSocketConnectionManager:
 
     async def disconnect(self, websocket: WebSocket) -> None:
         """Remove a WebSocket connection"""
-        pass
+        user_id = self.websocket_to_user.get(websocket)
+        if not user_id:
+            logger.warning("WebSocket connection not found in registry")
+            return
+
+        async with self._lock:
+            self.active_connections[user_id].discard(websocket)
+
+            for order_id in list(self.order_subscriptions.keys()):
+                if websocket in self.order_subscriptions[order_id]:
+                    self.order_subscriptions[order_id].discard(websocket)
+                    logger.info(f"User {user_id} unsubscribed from order {order_id}")
+
+            del self.websocket_to_user[websocket]
+            logger.info(f"User {user_id} disconnected from WebSocket")
+
+        try:
+            await websocket.close()
+            logger.info(f"WebSocket connection closed for user {user_id}")
+        except Exception as e:
+            logger.debug(f"Error closing WebSocket for user {user_id}: {e}")
 
     async def subscribe_to_order(
         self, websocket: WebSocket, order_id: uuid.UUID

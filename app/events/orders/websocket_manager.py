@@ -83,3 +83,14 @@ class WebSocketConnectionManager:
         logger.info(
             f"Broadcasted message to {sent_count} subscribers for order {order_id}"
         )
+
+
+_manager: WebSocketConnectionManager | None = None
+
+
+def get_websocket_manager() -> WebSocketConnectionManager:
+    """Get the singleton instance of the WebSocketConnectionManager"""
+    global _manager
+    if _manager is None:
+        _manager = WebSocketConnectionManager()
+    return _manager

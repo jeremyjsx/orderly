@@ -328,6 +328,7 @@ async def mark_order_as_delivered(
         "message": "Order delivered successfully",
     }
     await manager.broadcast_to_order(order_id, delivery_message)
+    await manager.close_order_connections(order_id)
 
     return _order_to_public(updated_order)
 

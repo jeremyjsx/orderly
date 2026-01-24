@@ -84,6 +84,23 @@ class WebSocketConnectionManager:
             f"Broadcasted message to {sent_count} subscribers for order {order_id}"
         )
 
+    async def close_order_connections(self, order_id: uuid.UUID) -> None:
+        subscribers = self.order_subscriptions.get(order_id)
+        if not subscribers:
+            logger.info(f"No connections to close for order {order_id}")
+            return
+
+        closed_count = 0
+        async with self._lock:
+            for websocket in list(subscribers):
+                try:
+                    await self.disconnect(websocket)
+                    closed_count += 1
+                except Exception as e:
+                    logger.error(f"Error closing connection for order {order_id}: {e}")
+
+        logger.info(f"Closed {closed_count} connections for order {order_id}")
+
 
 _manager: WebSocketConnectionManager | None = None
 

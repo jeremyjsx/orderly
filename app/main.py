@@ -27,9 +27,15 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
 
+    try:
+        await connect_redis()
+    except Exception:
+        pass
+
     yield
 
     await disconnect()
+    await disconnect_redis()
 
 
 def register_routes(app: FastAPI):

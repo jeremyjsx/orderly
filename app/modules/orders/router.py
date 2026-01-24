@@ -360,6 +360,17 @@ async def cancel_my_order(
             detail=str(e),
         ) from e
 
+    manager = get_websocket_manager()
+
+    cancellation_message = {
+        "type": "order_cancelled",
+        "order_id": str(order_id),
+        "status": OrderStatus.CANCELLED.value,
+        "message": "Order has been cancelled",
+    }
+    await manager.broadcast_to_order(order_id, cancellation_message)
+    await manager.close_order_connections(order_id)
+
     return _order_to_public(cancelled_order)
 
 

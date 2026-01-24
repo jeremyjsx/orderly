@@ -1,4 +1,6 @@
+import json
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import (
     APIRouter,
@@ -33,6 +35,7 @@ from app.modules.orders.repo import (
     update_order_status,
 )
 from app.modules.orders.schemas import (
+    LocationUpdate,
     OrderCreate,
     OrderItemPublic,
     OrderPublic,
@@ -42,6 +45,94 @@ from app.modules.products.schemas import ProductPublic
 from app.modules.users.models import Role, User
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+
+@router.websocket("/ws/{order_id}")
+async def track_order(
+    websocket: WebSocket,
+    order_id: uuid.UUID,
+    session: SessionDep,
+):
+    current_user = await get_current_user_websocket(websocket, session)
+
+    order = await get_order_by_id(session, order_id)
+    if not order:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketDisconnect()
+
+    match current_user.role:
+        case Role.ADMIN.value:
+            has_permission = True
+        case Role.USER.value:
+            has_permission = order.user_id == current_user.id
+        case Role.DRIVER.value:
+            has_permission = order.driver_id == current_user.id
+        case _:
+            has_permission = False
+
+    if not has_permission:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketDisconnect()
+
+    manager = get_websocket_manager()
+    await manager.connect(websocket, current_user.id)
+    await manager.subscribe_to_order(websocket, order_id)
+
+    initial_message = {
+        "type": "order_state",
+        "order": _order_to_public(order).model_dump(),
+    }
+    await websocket.send_text(json.dumps(initial_message, default=str))
+
+    is_driver = (
+        current_user.role == Role.DRIVER.value and order.driver_id == current_user.id
+    )
+
+    if not is_driver and order.driver_id is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketDisconnect()
+
+    try:
+        while True:
+            if is_driver:
+                data = await websocket.receive_text()
+                try:
+                    location_data = json.loads(data)
+                    location = LocationUpdate(**location_data)
+
+                    location_message = {
+                        "type": "location_update",
+                        "order_id": str(order_id),
+                        "latitude": location.latitude,
+                        "longitude": location.longitude,
+                        "timestamp": location.timestamp.isoformat()
+                        if location.timestamp
+                        else datetime.now(UTC).isoformat(),
+                    }
+                    await manager.broadcast_to_order(order_id, location_message)
+
+                    confirmation = {
+                        "type": "location_sent",
+                        "message": "Location update broadcasted successfully",
+                    }
+                    await websocket.send_text(json.dumps(confirmation))
+                except Exception as e:
+                    error_message = {
+                        "type": "error",
+                        "message": f"Invalid location data: {str(e)}",
+                    }
+                    await websocket.send_text(json.dumps(error_message))
+            else:
+                data = await websocket.receive_text()
+                error_message = {
+                    "type": "error",
+                    "message": "Only drivers can send location updates",
+                }
+                await websocket.send_text(json.dumps(error_message))
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await manager.disconnect(websocket)
 
 
 @router.post("/", response_model=OrderPublic, status_code=status.HTTP_201_CREATED)
@@ -174,46 +265,6 @@ async def get_my_deliveries(
         limit=limit,
         has_more=(offset + limit) < total,
     )
-
-
-@router.websocket("/ws/{order_id}")
-async def track_order(
-    websocket: WebSocket,
-    order_id: uuid.UUID,
-    session: SessionDep,
-):
-    current_user = await get_current_user_websocket(websocket, session)
-
-    order = await get_order_by_id(session, order_id)
-    if not order:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        raise WebSocketDisconnect("Order not found")
-
-    match current_user.role:
-        case Role.ADMIN.value:
-            has_permission = True
-        case Role.USER.value:
-            has_permission = order.user_id == current_user.id
-        case Role.DRIVER.value:
-            has_permission = order.driver_id == current_user.id
-        case _:
-            has_permission = False
-
-    if not has_permission:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        raise WebSocketDisconnect("You don't have permission to view this order")
-
-    manager = get_websocket_manager()
-    await manager.connect(websocket, current_user.id)
-    await manager.subscribe_to_order(websocket, order_id)
-
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        pass
-    finally:
-        await manager.disconnect(websocket)
 
 
 @router.get("/{order_id}", response_model=OrderPublic)

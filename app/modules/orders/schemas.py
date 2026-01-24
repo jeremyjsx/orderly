@@ -33,3 +33,9 @@ class OrderPublic(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
+
+
+class LocationUpdate(BaseModel):
+    latitude: float
+    longitude: float
+    timestamp: datetime | None = None

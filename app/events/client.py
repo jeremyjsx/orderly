@@ -25,8 +25,7 @@ async def connect() -> None:
 
     try:
         _connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
-        _channel = await _connection.channel()
-        await _channel.set_publisher_confirms(True)
+        _channel = await _connection.channel(publisher_confirms=True)
 
         _exchange = await _channel.declare_exchange(
             "orderly_events", aio_pika.ExchangeType.TOPIC, durable=True

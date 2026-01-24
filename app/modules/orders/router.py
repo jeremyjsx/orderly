@@ -289,6 +289,49 @@ async def get_order(
     return _order_to_public(order)
 
 
+@router.patch("/{order_id}/deliver", response_model=OrderPublic)
+async def mark_order_as_delivered(
+    order_id: uuid.UUID,
+    session: SessionDep,
+    driver_user: User = Depends(require_driver),
+) -> OrderPublic:
+    order = await get_order_by_id(session, order_id)
+
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found",
+        )
+
+    if order.driver_id != driver_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to deliver this order",
+        )
+
+    try:
+        updated_order = await update_order_status(
+            session, order_id, OrderStatus.DELIVERED
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+
+    manager = get_websocket_manager()
+
+    delivery_message = {
+        "type": "order_delivered",
+        "order_id": str(order_id),
+        "status": OrderStatus.DELIVERED.value,
+        "message": "Order delivered successfully",
+    }
+    await manager.broadcast_to_order(order_id, delivery_message)
+
+    return _order_to_public(updated_order)
+
+
 @router.patch("/{order_id}/cancel", response_model=OrderPublic)
 async def cancel_my_order(
     order_id: uuid.UUID,

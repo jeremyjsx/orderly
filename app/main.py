@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.api.router import router as api_router
 from app.core.config import settings
+from app.core.redis import connect_redis, disconnect_redis
 from app.events.client import connect, disconnect
 from app.modules.health.router import router as health_router
 

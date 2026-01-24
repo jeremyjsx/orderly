@@ -171,7 +171,8 @@ async def handle_order_created(
                         session, order_event.payload.order_id, OrderStatus.PROCESSING
                     )
                     logger.info(
-                        f"Order {order_event.payload.order_id} status updated to PROCESSING"
+                        f"Order {order_event.payload.order_id} "
+                        "status updated to PROCESSING"
                     )
                 except Exception as e:
                     logger.error(

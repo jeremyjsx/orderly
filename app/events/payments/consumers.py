@@ -9,8 +9,11 @@ import aio_pika
 from aio_pika.abc import AbstractExchange, AbstractIncomingMessage
 
 from app.core.config import settings
+from app.db.session import AsyncSessionLocal
 from app.events.orders.events import OrderCreatedEvent
 from app.events.payments.events import PaymentProcessedEvent, PaymentProcessedPayload
+from app.modules.orders.models import OrderStatus
+from app.modules.orders.repo import update_order_status
 
 logger = logging.getLogger(__name__)
 
@@ -153,11 +156,29 @@ async def handle_order_created(
             await message.ack()
             return
 
-        retry_count = (
-            int(message.headers.get("x-retry-count", 0)) if message.headers else 0
-        )
+        retry_count = 0
+        if message.headers:
+            retry_count_raw = message.headers.get("x-retry-count")
+            if isinstance(retry_count_raw, int | float | str):
+                retry_count = int(retry_count_raw)
 
         payment_event = await process_payment(order_event)
+
+        if payment_event.payload.status == "success":
+            async with AsyncSessionLocal() as session:
+                try:
+                    await update_order_status(
+                        session, order_event.payload.order_id, OrderStatus.PROCESSING
+                    )
+                    logger.info(
+                        f"Order {order_event.payload.order_id} status updated to PROCESSING"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to update order status: {e}",
+                        exc_info=True,
+                    )
+
         await publish_payment_event(exchange, payment_event)
 
         mark_event_processed(event_id)

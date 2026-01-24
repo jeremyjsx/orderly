@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 import redis.asyncio as aioredis
 from redis.asyncio import Redis
@@ -8,7 +7,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_redis_client: Optional[Redis] = None
+_redis_client: Redis | None = None
 
 
 async def connect_redis() -> None:

@@ -32,6 +32,28 @@ class Settings(BaseSettings):
         description="RabbitMQ URL",
     )
 
+    # Redis
+    REDIS_HOST: str = Field(
+        default="localhost",
+        description="Redis host",
+    )
+    REDIS_PORT: int = Field(
+        default=6379,
+        description="Redis port",
+    )
+    REDIS_PASSWORD: str = Field(
+        default="",
+        description="Redis password",
+    )
+    REDIS_DB: int = Field(
+        default=0,
+        description="Redis database number",
+    )
+    REDIS_URL: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis connection URL",
+    )
+
     # JWT
     JWT_SECRET_KEY: str = Field(
         default="change-me",

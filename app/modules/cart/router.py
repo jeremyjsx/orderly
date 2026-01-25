@@ -30,6 +30,7 @@ async def get_my_cart(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> CartPublic:
+    """Get the current user's shopping cart with items and totals."""
     cart = await get_or_create_active_cart(session, current_user.id)
 
     items = []
@@ -82,6 +83,7 @@ async def add_item_to_my_cart(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> CartItemWithProduct:
+    """Add a product to the shopping cart."""
     cart = await get_or_create_active_cart(session, current_user.id)
 
     try:
@@ -122,6 +124,7 @@ async def update_cart_item(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> CartItemWithProduct:
+    """Update the quantity of a cart item."""
     cart_item = await get_cart_item_by_id(session, item_id)
     if not cart_item:
         raise HTTPException(
@@ -174,6 +177,7 @@ async def remove_item_from_cart(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> None:
+    """Remove an item from the shopping cart."""
     cart_item = await get_cart_item_by_id(session, item_id)
     if not cart_item:
         raise HTTPException(
@@ -201,6 +205,7 @@ async def clear_my_cart(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> None:
+    """Remove all items from the shopping cart."""
     cart = await get_cart_by_user_id(session, current_user.id)
 
     if not cart:

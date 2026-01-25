@@ -54,6 +54,7 @@ async def track_order(
     order_id: uuid.UUID,
     session: SessionDep,
 ):
+    """WebSocket endpoint for real-time order tracking and driver location updates."""
     current_user = await get_current_user_websocket(websocket, session)
 
     order = await get_order_by_id(session, order_id)
@@ -138,6 +139,7 @@ async def create_order(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> OrderPublic:
+    """Create a new order from the current user's cart."""
     cart = await get_cart_by_user_id(session, current_user.id)
     if not cart:
         raise HTTPException(
@@ -229,6 +231,7 @@ async def get_available_orders(
         default=10, ge=1, le=100, description="Maximum number of records"
     ),
 ) -> PaginatedResponse[OrderPublic]:
+    """List orders ready for pickup. Requires driver role."""
     orders, total = await list_available_orders(session, offset=offset, limit=limit)
 
     items = [_order_to_public(order) for order in orders]
@@ -251,6 +254,7 @@ async def get_my_deliveries(
         default=10, ge=1, le=100, description="Maximum number of records"
     ),
 ) -> PaginatedResponse[OrderPublic]:
+    """List orders assigned to the current driver."""
     orders, total = await list_my_deliveries(
         session, driver_user.id, offset=offset, limit=limit
     )
@@ -272,6 +276,7 @@ async def get_order(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> OrderPublic:
+    """Get order details by ID. Accessible by owner, admin, or assigned driver."""
     order = await get_order_by_id(session, order_id)
     if not order:
         raise HTTPException(
@@ -300,6 +305,7 @@ async def mark_order_as_delivered(
     session: SessionDep,
     driver_user: User = Depends(require_driver),
 ) -> OrderPublic:
+    """Mark an order as delivered. Only the assigned driver can perform this action."""
     order = await get_order_by_id(session, order_id)
 
     if not order:
@@ -344,6 +350,7 @@ async def cancel_my_order(
     session: SessionDep,
     current_user: User = Depends(get_current_user),
 ) -> OrderPublic:
+    """Cancel an order. Only the order owner can cancel before delivery."""
     order = await get_order_by_id(session, order_id)
     if not order:
         raise HTTPException(
@@ -386,6 +393,7 @@ async def update_order_status_handler(
     session: SessionDep,
     admin_user: User = Depends(require_admin),
 ) -> OrderPublic:
+    """Update order status. Requires admin role."""
     try:
         updated_order = await update_order_status(session, order_id, payload.status)
     except ValueError as e:
@@ -469,6 +477,7 @@ async def assign_driver_to_order_handler(
     session: SessionDep,
     driver_user: User = Depends(require_driver),
 ) -> OrderPublic:
+    """Assign the current driver to an available order."""
     try:
         assigned_order = await assign_driver_to_order(session, order_id, driver_user.id)
     except ValueError as e:

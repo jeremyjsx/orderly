@@ -23,6 +23,7 @@ async def create_product_handler(
     session: SessionDep,
     admin_user: User = Depends(require_admin),
 ) -> ProductPublic:
+    """Create a new product. Requires admin role."""
     try:
         product = await create_product(session, payload)
     except ValueError as e:
@@ -47,6 +48,7 @@ async def create_product_handler(
 async def get_product_handler(
     product_id: uuid.UUID, session: SessionDep
 ) -> ProductPublic:
+    """Get a product by its ID."""
     product = await get_product_by_id(session, product_id)
     if not product:
         raise HTTPException(
@@ -136,6 +138,7 @@ async def update_product_handler(
     session: SessionDep,
     admin_user: User = Depends(require_admin),
 ) -> ProductPublic:
+    """Update a product by ID. Requires admin role."""
     try:
         product = await update_product(session, product_id, payload)
     except ValueError as e:

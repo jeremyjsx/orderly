@@ -47,6 +47,7 @@ async def register(
     session: SessionDep,
     _: None = Depends(rate_limit_auth),
 ) -> UserPublic:
+    """Register a new user account."""
     existing = await get_user_by_email(session, payload.email)
     if existing:
         raise HTTPException(
@@ -70,6 +71,7 @@ async def login(
     session: SessionDep,
     _: None = Depends(rate_limit_auth),
 ) -> Token:
+    """Authenticate user and return access and refresh tokens."""
     user = await get_user_by_email(session, payload.email)
     if not user:
         raise HTTPException(

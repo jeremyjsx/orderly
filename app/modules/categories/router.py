@@ -28,6 +28,7 @@ async def create_category_handler(
     session: SessionDep,
     admin_user: User = Depends(require_admin),
 ) -> CategoryPublic:
+    """Create a new category. Requires admin role."""
     try:
         category = await create_category(session, payload)
     except ValueError as e:
@@ -82,6 +83,7 @@ async def list_categories_handler(
 async def get_category_handler(
     category_id: uuid.UUID, session: SessionDep
 ) -> CategoryPublic:
+    """Get a category by its ID."""
     category = await get_category_by_id(session, category_id)
     if not category:
         raise HTTPException(
@@ -100,6 +102,7 @@ async def get_category_handler(
 async def get_category_by_slug_handler(
     slug: str, session: SessionDep
 ) -> CategoryPublic:
+    """Get a category by its URL-friendly slug."""
     category = await get_category_by_slug(session, slug)
     if not category:
         raise HTTPException(
@@ -121,6 +124,7 @@ async def update_category_handler(
     session: SessionDep,
     admin_user: User = Depends(require_admin),
 ) -> CategoryPublic:
+    """Update a category by ID. Requires admin role."""
     try:
         category = await update_category(session, category_id, payload)
     except ValueError as e:
@@ -144,6 +148,7 @@ async def delete_category_handler(
     session: SessionDep,
     admin_user: User = Depends(require_admin),
 ) -> None:
+    """Delete a category by ID. Requires admin role."""
     deleted = await delete_category(session, category_id)
     if not deleted:
         raise HTTPException(

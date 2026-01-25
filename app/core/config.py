@@ -68,5 +68,26 @@ class Settings(BaseSettings):
         description="JWT expiration time in minutes",
     )
 
+    RATE_LIMIT_ENABLED: bool = Field(
+        default=True,
+        description="Enable rate limiting",
+    )
+    RATE_LIMIT_AUTH_REQUESTS: int = Field(
+        default=5,
+        description="Number of requests allowed for auth endpoints",
+    )
+    RATE_LIMIT_AUTH_WINDOW: int = Field(
+        default=60,
+        description="Time window in seconds for auth rate limiting",
+    )
+    RATE_LIMIT_GLOBAL_REQUESTS: int = Field(
+        default=100,
+        description="Number of requests allowed globally per window",
+    )
+    RATE_LIMIT_GLOBAL_WINDOW: int = Field(
+        default=60,
+        description="Time window in seconds for global rate limiting",
+    )
+
 
 settings = Settings()

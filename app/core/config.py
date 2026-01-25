@@ -20,6 +20,21 @@ class Settings(BaseSettings):
     # API
     API_PREFIX: str = "/api/v1"
 
+    # CORS
+    CORS_ORIGINS: str = Field(
+        default="*",
+        description="Comma-separated list of allowed origins, or * for all",
+    )
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse CORS_ORIGINS string into a list."""
+        if self.CORS_ORIGINS == "*":
+            return ["*"]
+        return [
+            origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()
+        ]
+
     # Database
     DATABASE_URL: str = Field(
         default="postgresql+asyncpg://orderly:orderly@localhost:5432/orderly",
@@ -65,7 +80,11 @@ class Settings(BaseSettings):
     )
     JWT_EXPIRATION_TIME: int = Field(
         default=60,
-        description="JWT expiration time in minutes",
+        description="JWT access token expiration time in minutes",
+    )
+    JWT_REFRESH_EXPIRATION_DAYS: int = Field(
+        default=7,
+        description="JWT refresh token expiration time in days",
     )
 
     RATE_LIMIT_ENABLED: bool = Field(

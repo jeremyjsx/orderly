@@ -90,14 +90,15 @@ class WebSocketConnectionManager:
             logger.info(f"No connections to close for order {order_id}")
             return
 
+        websockets_to_close = list(subscribers)
         closed_count = 0
-        async with self._lock:
-            for websocket in list(subscribers):
-                try:
-                    await self.disconnect(websocket)
-                    closed_count += 1
-                except Exception as e:
-                    logger.error(f"Error closing connection for order {order_id}: {e}")
+
+        for websocket in websockets_to_close:
+            try:
+                await self.disconnect(websocket)
+                closed_count += 1
+            except Exception as e:
+                logger.error(f"Error closing connection for order {order_id}: {e}")
 
         logger.info(f"Closed {closed_count} connections for order {order_id}")
 

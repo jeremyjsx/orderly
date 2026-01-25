@@ -43,9 +43,6 @@ run:
 	$(UVICORN) app.main:app --reload --port $(PORT)
 
 test:
-	$(PYTEST) tests/
-
-test-docker:
 	@echo "Starting test database container..."
 	$(DOCKER_COMPOSE) -f docker-compose.test.yml up -d postgres-test
 	@echo "Waiting for database to be ready..."

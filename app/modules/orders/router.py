@@ -1,9 +1,26 @@
+import json
 import uuid
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 
-from app.api.deps import SessionDep, get_current_user, require_admin, require_driver
+from app.api.deps import (
+    SessionDep,
+    get_current_user,
+    get_current_user_websocket,
+    require_admin,
+    require_driver,
+)
 from app.core.schemas import PaginatedResponse
+from app.events.orders.websocket_manager import get_websocket_manager
 from app.modules.cart.repo import get_cart_by_user_id
 from app.modules.orders.models import OrderStatus
 from app.modules.orders.repo import (
@@ -18,15 +35,100 @@ from app.modules.orders.repo import (
     update_order_status,
 )
 from app.modules.orders.schemas import (
+    LocationUpdate,
     OrderCreate,
     OrderItemPublic,
     OrderPublic,
     OrderStatusUpdate,
 )
 from app.modules.products.schemas import ProductPublic
-from app.modules.users.models import User
+from app.modules.users.models import Role, User
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+
+@router.websocket("/ws/{order_id}")
+async def track_order(
+    websocket: WebSocket,
+    order_id: uuid.UUID,
+    session: SessionDep,
+):
+    current_user = await get_current_user_websocket(websocket, session)
+
+    order = await get_order_by_id(session, order_id)
+    if not order:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketDisconnect()
+
+    match current_user.role:
+        case Role.ADMIN.value:
+            has_permission = True
+        case Role.USER.value:
+            has_permission = order.user_id == current_user.id
+        case Role.DRIVER.value:
+            has_permission = order.driver_id == current_user.id
+        case _:
+            has_permission = False
+
+    if not has_permission:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketDisconnect()
+
+    manager = get_websocket_manager()
+    await manager.connect(websocket, current_user.id)
+    await manager.subscribe_to_order(websocket, order_id)
+
+    initial_message = {
+        "type": "order_state",
+        "order": _order_to_public(order).model_dump(),
+    }
+    await websocket.send_text(json.dumps(initial_message, default=str))
+
+    is_driver = (
+        current_user.role == Role.DRIVER.value and order.driver_id == current_user.id
+    )
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+
+            if is_driver:
+                try:
+                    location_data = json.loads(data)
+                    location = LocationUpdate(**location_data)
+
+                    location_message = {
+                        "type": "location_update",
+                        "order_id": str(order_id),
+                        "latitude": location.latitude,
+                        "longitude": location.longitude,
+                        "timestamp": location.timestamp.isoformat()
+                        if location.timestamp
+                        else datetime.now(UTC).isoformat(),
+                    }
+                    await manager.broadcast_to_order(order_id, location_message)
+
+                    confirmation = {
+                        "type": "location_sent",
+                        "message": "Location update broadcasted successfully",
+                    }
+                    await websocket.send_text(json.dumps(confirmation))
+                except Exception as e:
+                    error_message = {
+                        "type": "error",
+                        "message": f"Invalid location data: {str(e)}",
+                    }
+                    await websocket.send_text(json.dumps(error_message))
+            else:
+                error_message = {
+                    "type": "error",
+                    "message": "Only drivers can send location updates",
+                }
+                await websocket.send_text(json.dumps(error_message))
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await manager.disconnect(websocket)
 
 
 @router.post("/", response_model=OrderPublic, status_code=status.HTTP_201_CREATED)
@@ -174,13 +276,63 @@ async def get_order(
             detail="Order not found",
         )
 
-    if order.user_id != current_user.id:
+    is_owner = order.user_id == current_user.id
+    is_admin = current_user.role == Role.ADMIN.value
+    is_assigned_driver = (
+        current_user.role == Role.DRIVER.value and order.driver_id == current_user.id
+    )
+
+    if not (is_owner or is_admin or is_assigned_driver):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to view this order",
         )
 
     return _order_to_public(order)
+
+
+@router.patch("/{order_id}/deliver", response_model=OrderPublic)
+async def mark_order_as_delivered(
+    order_id: uuid.UUID,
+    session: SessionDep,
+    driver_user: User = Depends(require_driver),
+) -> OrderPublic:
+    order = await get_order_by_id(session, order_id)
+
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found",
+        )
+
+    if order.driver_id != driver_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to deliver this order",
+        )
+
+    try:
+        updated_order = await update_order_status(
+            session, order_id, OrderStatus.DELIVERED
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from e
+
+    manager = get_websocket_manager()
+
+    delivery_message = {
+        "type": "order_delivered",
+        "order_id": str(order_id),
+        "status": OrderStatus.DELIVERED.value,
+        "message": "Order delivered successfully",
+    }
+    await manager.broadcast_to_order(order_id, delivery_message)
+    await manager.close_order_connections(order_id)
+
+    return _order_to_public(updated_order)
 
 
 @router.patch("/{order_id}/cancel", response_model=OrderPublic)
@@ -210,6 +362,17 @@ async def cancel_my_order(
             detail=str(e),
         ) from e
 
+    manager = get_websocket_manager()
+
+    cancellation_message = {
+        "type": "order_cancelled",
+        "order_id": str(order_id),
+        "status": OrderStatus.CANCELLED.value,
+        "message": "Order has been cancelled",
+    }
+    await manager.broadcast_to_order(order_id, cancellation_message)
+    await manager.close_order_connections(order_id)
+
     return _order_to_public(cancelled_order)
 
 
@@ -227,6 +390,15 @@ async def update_order_status_handler(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
+
+    manager = get_websocket_manager()
+    status_message = {
+        "type": "order_status_updated",
+        "order_id": str(order_id),
+        "status": payload.status.value,
+        "updated_at": updated_order.updated_at.isoformat(),
+    }
+    await manager.broadcast_to_order(order_id, status_message)
 
     return _order_to_public(updated_order)
 
@@ -287,5 +459,14 @@ async def assign_driver_to_order_handler(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
+
+    manager = get_websocket_manager()
+    assignment_message = {
+        "type": "driver_assigned",
+        "order_id": str(order_id),
+        "driver_id": str(driver_user.id),
+        "message": "A driver has been assigned to your order",
+    }
+    await manager.broadcast_to_order(order_id, assignment_message)
 
     return _order_to_public(assigned_order)

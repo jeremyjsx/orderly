@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.security import OAuth2PasswordBearer
 
 from app.core.security import decode_access_token
@@ -32,3 +32,23 @@ async def require_driver(current_user: User = Depends(get_current_user)) -> User
     if current_user.role != Role.DRIVER.value:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
     return current_user
+
+
+async def get_current_user_websocket(websocket: WebSocket, session: SessionDep) -> User:
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketDisconnect("Missing token")
+
+    try:
+        user_id = decode_access_token(token)
+    except HTTPException as err:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketDisconnect("Invalid token") from err
+
+    user = await get_user_by_id(session, user_id)
+    if not user:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketDisconnect("Invalid credentials")
+
+    return user

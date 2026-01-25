@@ -31,7 +31,9 @@ class Settings(BaseSettings):
         """Parse CORS_ORIGINS string into a list."""
         if self.CORS_ORIGINS == "*":
             return ["*"]
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        return [
+            origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()
+        ]
 
     # Database
     DATABASE_URL: str = Field(
@@ -78,7 +80,11 @@ class Settings(BaseSettings):
     )
     JWT_EXPIRATION_TIME: int = Field(
         default=60,
-        description="JWT expiration time in minutes",
+        description="JWT access token expiration time in minutes",
+    )
+    JWT_REFRESH_EXPIRATION_DAYS: int = Field(
+        default=7,
+        description="JWT refresh token expiration time in days",
     )
 
     RATE_LIMIT_ENABLED: bool = Field(

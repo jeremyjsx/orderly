@@ -7,8 +7,29 @@ from app.modules.orders.models import OrderStatus
 from app.modules.products.schemas import ProductPublic
 
 
+class ShippingAddressCreate(BaseModel):
+    recipient_name: str
+    phone: str
+    street: str
+    city: str
+    state: str
+    postal_code: str
+    country: str
+
+
+class ShippingAddressPublic(BaseModel):
+    id: uuid.UUID
+    recipient_name: str
+    phone: str
+    street: str
+    city: str
+    state: str
+    postal_code: str
+    country: str
+
+
 class OrderCreate(BaseModel):
-    pass
+    shipping_address: ShippingAddressCreate
 
 
 class OrderItemPublic(BaseModel):
@@ -26,6 +47,7 @@ class OrderPublic(BaseModel):
     status: OrderStatus
     total: float
     items: list[OrderItemPublic]
+    shipping_address: ShippingAddressPublic | None = None
     created_at: datetime
     updated_at: datetime
     driver_id: uuid.UUID | None = None

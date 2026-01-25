@@ -11,7 +11,8 @@ from app.db.session import SessionDep
 from app.events.client import publish_event
 from app.events.orders.utils import order_to_created_event
 from app.modules.cart.models import Cart, CartItem
-from app.modules.orders.models import Order, OrderItem, OrderStatus
+from app.modules.orders.models import Order, OrderItem, OrderStatus, ShippingAddress
+from app.modules.orders.schemas import ShippingAddressCreate
 from app.modules.products.models import Product
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,10 @@ def validate_status_transition(current_status: str, new_status: str) -> None:
 
 
 async def create_order_from_cart(
-    session: SessionDep, cart_id: uuid.UUID, user_id: uuid.UUID
+    session: SessionDep,
+    cart_id: uuid.UUID,
+    user_id: uuid.UUID,
+    shipping_address: ShippingAddressCreate,
 ) -> Order:
     result = await session.execute(
         select(Cart)
@@ -108,6 +112,19 @@ async def create_order_from_cart(
         await session.rollback()
         raise
 
+    address = ShippingAddress(
+        id=uuid.uuid4(),
+        order_id=order.id,
+        recipient_name=shipping_address.recipient_name,
+        phone=shipping_address.phone,
+        street=shipping_address.street,
+        city=shipping_address.city,
+        state=shipping_address.state,
+        postal_code=shipping_address.postal_code,
+        country=shipping_address.country,
+    )
+    session.add(address)
+
     for item_data in order_items_data:
         order_item = OrderItem(
             id=uuid.uuid4(),
@@ -145,7 +162,7 @@ async def create_order_from_cart(
         await session.rollback()
         raise
 
-    await session.refresh(order, ["items"])
+    await session.refresh(order, ["items", "shipping_address"])
 
     try:
         event = order_to_created_event(order)
@@ -182,7 +199,10 @@ async def get_order_by_id(session: SessionDep, order_id: uuid.UUID) -> Order | N
     result = await session.execute(
         select(Order)
         .where(Order.id == order_id)
-        .options(selectinload(Order.items).selectinload(OrderItem.product))
+        .options(
+            selectinload(Order.items).selectinload(OrderItem.product),
+            selectinload(Order.shipping_address),
+        )
     )
     return result.scalar_one_or_none()
 
@@ -204,7 +224,10 @@ async def get_user_orders(
     total = total_result.scalar_one()
 
     query = (
-        query.options(selectinload(Order.items).selectinload(OrderItem.product))
+        query.options(
+            selectinload(Order.items).selectinload(OrderItem.product),
+            selectinload(Order.shipping_address),
+        )
         .offset(offset)
         .limit(limit)
         .order_by(Order.created_at.desc())
@@ -232,7 +255,10 @@ async def list_all_orders(
     total = total_result.scalar_one()
 
     query = (
-        query.options(selectinload(Order.items).selectinload(OrderItem.product))
+        query.options(
+            selectinload(Order.items).selectinload(OrderItem.product),
+            selectinload(Order.shipping_address),
+        )
         .offset(offset)
         .limit(limit)
         .order_by(Order.created_at.desc())
@@ -258,7 +284,10 @@ async def list_available_orders(
     total = total_result.scalar_one()
 
     query = (
-        query.options(selectinload(Order.items).selectinload(OrderItem.product))
+        query.options(
+            selectinload(Order.items).selectinload(OrderItem.product),
+            selectinload(Order.shipping_address),
+        )
         .offset(offset)
         .limit(limit)
         .order_by(Order.created_at.desc())
@@ -279,7 +308,10 @@ async def list_my_deliveries(
     total_result = await session.execute(count_query)
     total = total_result.scalar_one()
     query = (
-        query.options(selectinload(Order.items).selectinload(OrderItem.product))
+        query.options(
+            selectinload(Order.items).selectinload(OrderItem.product),
+            selectinload(Order.shipping_address),
+        )
         .offset(offset)
         .limit(limit)
         .order_by(Order.created_at.desc())

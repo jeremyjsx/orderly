@@ -5,6 +5,16 @@ from httpx import AsyncClient
 
 from app.modules.users.models import User
 
+SHIPPING_ADDRESS = {
+    "recipient_name": "John Doe",
+    "phone": "+1234567890",
+    "street": "123 Main St",
+    "city": "New York",
+    "state": "NY",
+    "postal_code": "10001",
+    "country": "USA",
+}
+
 
 @pytest.mark.asyncio
 async def test_create_order_requires_auth(client: AsyncClient):
@@ -18,7 +28,7 @@ async def test_create_order_requires_auth(client: AsyncClient):
 async def test_create_order_no_cart(client: AsyncClient, user_token: str):
     """Test creating an order with no active cart."""
     headers = {"Authorization": f"Bearer {user_token}"}
-    payload = {}
+    payload = {"shipping_address": SHIPPING_ADDRESS}
     response = await client.post("/api/v1/orders/", json=payload, headers=headers)
     assert response.status_code == 400
     assert "No active cart found" in response.json()["detail"]
@@ -45,7 +55,7 @@ async def test_create_order_empty_cart(
     await db_session.commit()
 
     headers = {"Authorization": f"Bearer {user_token}"}
-    payload = {}
+    payload = {"shipping_address": SHIPPING_ADDRESS}
     response = await client.post("/api/v1/orders/", json=payload, headers=headers)
 
     assert response.status_code == 400
@@ -149,7 +159,7 @@ async def test_create_order_success(client: AsyncClient, user_token: str, db_ses
         headers=headers,
     )
 
-    payload = {}
+    payload = {"shipping_address": SHIPPING_ADDRESS}
     response = await client.post("/api/v1/orders/", json=payload, headers=headers)
     assert response.status_code == 201
     data = response.json()
@@ -158,6 +168,8 @@ async def test_create_order_success(client: AsyncClient, user_token: str, db_ses
     assert len(data["items"]) == 1
     assert data["items"][0]["quantity"] == 2
     assert data["items"][0]["product_id"] == str(product.id)
+    assert data["shipping_address"] is not None
+    assert data["shipping_address"]["recipient_name"] == "John Doe"
 
     cart_response = await client.get("/api/v1/cart/me", headers=headers)
     assert cart_response.status_code == 200
@@ -427,7 +439,7 @@ async def test_create_order_insufficient_stock(
     product.stock = 2
     await db_session.commit()
 
-    payload = {}
+    payload = {"shipping_address": SHIPPING_ADDRESS}
     response = await client.post("/api/v1/orders/", json=payload, headers=headers)
     assert response.status_code == 400
     assert "insufficient stock" in response.json()["detail"].lower()
@@ -473,7 +485,7 @@ async def test_create_order_inactive_product(
     product.is_active = False
     await db_session.commit()
 
-    payload = {}
+    payload = {"shipping_address": SHIPPING_ADDRESS}
     response = await client.post("/api/v1/orders/", json=payload, headers=headers)
     assert response.status_code == 400
     assert "not active" in response.json()["detail"].lower()
@@ -514,7 +526,11 @@ async def test_list_my_orders_success(client: AsyncClient, user_token: str, db_s
         json={"product_id": str(product.id), "quantity": 1},
         headers=headers,
     )
-    order_response = await client.post("/api/v1/orders/", json={}, headers=headers)
+    order_response = await client.post(
+        "/api/v1/orders/",
+        json={"shipping_address": SHIPPING_ADDRESS},
+        headers=headers,
+    )
     assert order_response.status_code == 201
 
     response = await client.get("/api/v1/orders/me", headers=headers)
@@ -560,7 +576,11 @@ async def test_get_order_success(client: AsyncClient, user_token: str, db_sessio
         json={"product_id": str(product.id), "quantity": 2},
         headers=headers,
     )
-    order_response = await client.post("/api/v1/orders/", json={}, headers=headers)
+    order_response = await client.post(
+        "/api/v1/orders/",
+        json={"shipping_address": SHIPPING_ADDRESS},
+        headers=headers,
+    )
     assert order_response.status_code == 201
     order_id = order_response.json()["id"]
 
@@ -571,6 +591,7 @@ async def test_get_order_success(client: AsyncClient, user_token: str, db_sessio
     assert data["status"] == "pending"
     assert data["total"] == 21.98
     assert len(data["items"]) == 1
+    assert data["shipping_address"] is not None
 
 
 @pytest.mark.asyncio
@@ -674,7 +695,11 @@ async def test_cancel_order_success(client: AsyncClient, user_token: str, db_ses
         json={"product_id": str(product.id), "quantity": 1},
         headers=headers,
     )
-    order_response = await client.post("/api/v1/orders/", json={}, headers=headers)
+    order_response = await client.post(
+        "/api/v1/orders/",
+        json={"shipping_address": SHIPPING_ADDRESS},
+        headers=headers,
+    )
     assert order_response.status_code == 201
     order_id = order_response.json()["id"]
 
@@ -788,7 +813,11 @@ async def test_update_order_status_success(
         json={"product_id": str(product.id), "quantity": 1},
         headers=user_headers,
     )
-    order_response = await client.post("/api/v1/orders/", json={}, headers=user_headers)
+    order_response = await client.post(
+        "/api/v1/orders/",
+        json={"shipping_address": SHIPPING_ADDRESS},
+        headers=user_headers,
+    )
     assert order_response.status_code == 201
     order_id = order_response.json()["id"]
 
@@ -850,7 +879,11 @@ async def test_update_order_status_invalid_transition(
         json={"product_id": str(product.id), "quantity": 1},
         headers=user_headers,
     )
-    order_response = await client.post("/api/v1/orders/", json={}, headers=user_headers)
+    order_response = await client.post(
+        "/api/v1/orders/",
+        json={"shipping_address": SHIPPING_ADDRESS},
+        headers=user_headers,
+    )
     assert order_response.status_code == 201
     order_id = order_response.json()["id"]
 
@@ -911,7 +944,11 @@ async def test_list_all_orders_success(
         json={"product_id": str(product.id), "quantity": 1},
         headers=user_headers,
     )
-    order_response = await client.post("/api/v1/orders/", json={}, headers=user_headers)
+    order_response = await client.post(
+        "/api/v1/orders/",
+        json={"shipping_address": SHIPPING_ADDRESS},
+        headers=user_headers,
+    )
     assert order_response.status_code == 201
 
     admin_headers = {"Authorization": f"Bearer {admin_token}"}

@@ -40,6 +40,7 @@ from app.modules.orders.schemas import (
     OrderItemPublic,
     OrderPublic,
     OrderStatusUpdate,
+    ShippingAddressPublic,
 )
 from app.modules.products.schemas import ProductPublic
 from app.modules.users.models import Role, User
@@ -145,7 +146,9 @@ async def create_order(
         )
 
     try:
-        order = await create_order_from_cart(session, cart.id, current_user.id)
+        order = await create_order_from_cart(
+            session, cart.id, current_user.id, payload.shipping_address
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -433,6 +436,19 @@ def _order_to_public(order) -> OrderPublic:
             )
         )
 
+    shipping_address_public = None
+    if order.shipping_address:
+        shipping_address_public = ShippingAddressPublic(
+            id=order.shipping_address.id,
+            recipient_name=order.shipping_address.recipient_name,
+            phone=order.shipping_address.phone,
+            street=order.shipping_address.street,
+            city=order.shipping_address.city,
+            state=order.shipping_address.state,
+            postal_code=order.shipping_address.postal_code,
+            country=order.shipping_address.country,
+        )
+
     order_total = float(order.total)
     return OrderPublic(
         id=order.id,
@@ -440,6 +456,7 @@ def _order_to_public(order) -> OrderPublic:
         status=OrderStatus(order.status),
         total=order_total,
         items=items,
+        shipping_address=shipping_address_public,
         created_at=order.created_at,
         updated_at=order.updated_at,
         driver_id=order.driver_id,

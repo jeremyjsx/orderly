@@ -20,6 +20,19 @@ class Settings(BaseSettings):
     # API
     API_PREFIX: str = "/api/v1"
 
+    # CORS
+    CORS_ORIGINS: str = Field(
+        default="*",
+        description="Comma-separated list of allowed origins, or * for all",
+    )
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse CORS_ORIGINS string into a list."""
+        if self.CORS_ORIGINS == "*":
+            return ["*"]
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
     # Database
     DATABASE_URL: str = Field(
         default="postgresql+asyncpg://orderly:orderly@localhost:5432/orderly",

@@ -50,6 +50,10 @@ async def db_session() -> AsyncGenerator[AsyncSession]:
 @pytest_asyncio.fixture(scope="function")
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """Create a test client that shares the same database session."""
+    # Disable rate limiting for tests
+    original_rate_limit = settings.RATE_LIMIT_ENABLED
+    settings.RATE_LIMIT_ENABLED = False
+
     app = create_app()
 
     async def override_get_db():
@@ -63,6 +67,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
         yield ac
 
     app.dependency_overrides.clear()
+    settings.RATE_LIMIT_ENABLED = original_rate_limit
 
 
 @pytest_asyncio.fixture

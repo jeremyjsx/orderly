@@ -88,14 +88,11 @@ async def track_order(
         current_user.role == Role.DRIVER.value and order.driver_id == current_user.id
     )
 
-    if not is_driver and order.driver_id is None:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        raise WebSocketDisconnect()
-
     try:
         while True:
+            data = await websocket.receive_text()
+
             if is_driver:
-                data = await websocket.receive_text()
                 try:
                     location_data = json.loads(data)
                     location = LocationUpdate(**location_data)
@@ -123,7 +120,6 @@ async def track_order(
                     }
                     await websocket.send_text(json.dumps(error_message))
             else:
-                data = await websocket.receive_text()
                 error_message = {
                     "type": "error",
                     "message": "Only drivers can send location updates",
@@ -280,7 +276,13 @@ async def get_order(
             detail="Order not found",
         )
 
-    if order.user_id != current_user.id:
+    is_owner = order.user_id == current_user.id
+    is_admin = current_user.role == Role.ADMIN.value
+    is_assigned_driver = (
+        current_user.role == Role.DRIVER.value and order.driver_id == current_user.id
+    )
+
+    if not (is_owner or is_admin or is_assigned_driver):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to view this order",
@@ -389,6 +391,15 @@ async def update_order_status_handler(
             detail=str(e),
         ) from e
 
+    manager = get_websocket_manager()
+    status_message = {
+        "type": "order_status_updated",
+        "order_id": str(order_id),
+        "status": payload.status.value,
+        "updated_at": updated_order.updated_at.isoformat(),
+    }
+    await manager.broadcast_to_order(order_id, status_message)
+
     return _order_to_public(updated_order)
 
 
@@ -448,5 +459,14 @@ async def assign_driver_to_order_handler(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         ) from e
+
+    manager = get_websocket_manager()
+    assignment_message = {
+        "type": "driver_assigned",
+        "order_id": str(order_id),
+        "driver_id": str(driver_user.id),
+        "message": "A driver has been assigned to your order",
+    }
+    await manager.broadcast_to_order(order_id, assignment_message)
 
     return _order_to_public(assigned_order)

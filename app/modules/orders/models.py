@@ -22,6 +22,30 @@ class OrderStatus(EnumType):
     CANCELLED = "cancelled"
 
 
+class ShippingAddress(Base):
+    __tablename__ = "shipping_addresses"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("orders.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    recipient_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    phone: Mapped[str] = mapped_column(String(20), nullable=False)
+    street: Mapped[str] = mapped_column(String(255), nullable=False)
+    city: Mapped[str] = mapped_column(String(100), nullable=False)
+    state: Mapped[str] = mapped_column(String(100), nullable=False)
+    postal_code: Mapped[str] = mapped_column(String(20), nullable=False)
+    country: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    order: Mapped["Order"] = relationship("Order", back_populates="shipping_address")
+
+
 class Order(Base):
     __tablename__ = "orders"
 
@@ -39,6 +63,9 @@ class Order(Base):
     )
     total: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="order")
+    shipping_address: Mapped["ShippingAddress | None"] = relationship(
+        "ShippingAddress", back_populates="order", uselist=False, cascade="all, delete"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

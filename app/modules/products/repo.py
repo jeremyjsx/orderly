@@ -30,7 +30,6 @@ async def create_product(session: SessionDep, product_data: ProductCreate) -> Pr
             price=product_data.price,
             stock=product_data.stock,
             category_id=product_data.category_id,
-            image_url=product_data.image_url,
             is_active=True,
         )
         session.add(product)
@@ -60,7 +59,6 @@ async def list_products(
     max_price: float | None = None,
     sort_by: str | None = None,
 ) -> tuple[Sequence[Product], int]:
-    """List products with pagination, filters, search, and sorting."""
     query = select(Product)
 
     if category_id is not None:
@@ -135,8 +133,6 @@ async def update_product(
             product.stock = product_data.stock
         if product_data.category_id is not None:
             product.category_id = product_data.category_id
-        if product_data.image_url is not None:
-            product.image_url = product_data.image_url
         if product_data.is_active is not None:
             product.is_active = product_data.is_active
 
@@ -148,11 +144,20 @@ async def update_product(
     return product
 
 
-async def delete_product(session: SessionDep, product_id: uuid.UUID) -> bool:
-    """Delete a product by ID (hard delete).
+async def update_product_image(
+    session: SessionDep, product_id: uuid.UUID, image_url: str | None
+) -> Product | None:
+    product = await get_product_by_id(session, product_id)
+    if not product:
+        return None
 
-    Also removes the product from all active shopping carts.
-    """
+    product.image_url = image_url
+    await session.commit()
+    await session.refresh(product)
+    return product
+
+
+async def delete_product(session: SessionDep, product_id: uuid.UUID) -> bool:
     product = await get_product_by_id(session, product_id)
     if not product:
         return False

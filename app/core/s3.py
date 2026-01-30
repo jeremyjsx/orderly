@@ -1,7 +1,7 @@
 import logging
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 import aioboto3
 from botocore.exceptions import ClientError
@@ -37,24 +37,28 @@ def _get_session() -> aioboto3.Session:
 @asynccontextmanager
 async def _get_client() -> AsyncGenerator:
     session = _get_session()
-    async with session.client("s3", endpoint_url=settings.AWS_S3_ENDPOINT_URL) as client:
+    async with session.client(
+        "s3", endpoint_url=settings.AWS_S3_ENDPOINT_URL
+    ) as client:
         yield client
 
 
 def _validate_file(file: UploadFile) -> None:
     if file.content_type not in ALLOWED_CONTENT_TYPES:
+        allowed = ", ".join(ALLOWED_CONTENT_TYPES)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file type. Allowed types: {', '.join(ALLOWED_CONTENT_TYPES)}",
+            detail=f"Invalid file type. Allowed: {allowed}",
         )
 
 
 async def _check_file_size(file: UploadFile) -> bytes:
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
+        max_mb = MAX_FILE_SIZE // (1024 * 1024)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024 * 1024)}MB",
+            detail=f"File too large. Maximum size is {max_mb}MB",
         )
     return content
 
@@ -94,7 +98,9 @@ async def _ensure_bucket_exists(bucket_name: str) -> None:
                         )
                     logger.info(f"Created S3 bucket: {bucket_name}")
                 except ClientError as create_error:
-                    logger.error(f"Failed to create bucket {bucket_name}: {create_error}")
+                    logger.error(
+                        f"Failed to create bucket {bucket_name}: {create_error}"
+                    )
                     raise
             else:
                 raise
@@ -130,7 +136,9 @@ async def upload_file(bucket_name: str, file: UploadFile) -> str:
 
 async def delete_file(bucket_name: str, file_url: str) -> bool:
     try:
-        if settings.AWS_S3_ENDPOINT_URL and file_url.startswith(settings.AWS_S3_ENDPOINT_URL):
+        if settings.AWS_S3_ENDPOINT_URL and file_url.startswith(
+            settings.AWS_S3_ENDPOINT_URL
+        ):
             key = file_url.split(f"/{bucket_name}/")[-1]
         else:
             key = file_url.split("/")[-1]

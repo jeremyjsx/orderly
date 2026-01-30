@@ -9,7 +9,9 @@ from app.modules.categories.models import Category
 from app.modules.categories.schemas import CategoryCreate, CategoryUpdate
 
 
-async def create_category(session: SessionDep, category_data: CategoryCreate) -> Category:
+async def create_category(
+    session: SessionDep, category_data: CategoryCreate
+) -> Category:
     existing = await get_category_by_slug(session, category_data.slug)
     if existing:
         raise ValueError(f"Category with slug '{category_data.slug}' already exists")

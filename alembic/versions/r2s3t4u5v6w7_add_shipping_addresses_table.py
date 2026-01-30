@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 revision: str = "r2s3t4u5v6w7"
-down_revision: str | None = "l3m4n5o6p7q8"
+down_revision: str | None = "fa2dde6b65ef"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

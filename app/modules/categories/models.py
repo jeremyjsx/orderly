@@ -26,6 +26,7 @@ class Category(Base):
         String(255), nullable=False, unique=True, index=True
     )
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     products: Mapped[list["Product"]] = relationship(
         "Product", back_populates="category"
     )

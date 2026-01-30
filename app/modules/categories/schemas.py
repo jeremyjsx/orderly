@@ -16,6 +16,7 @@ class CategoryPublic(BaseModel):
     description: str | None
     slug: str
     is_active: bool
+    image_url: str | None
 
 
 class CategoryUpdate(BaseModel):

@@ -54,7 +54,6 @@ async def list_categories(
     active_only: bool = False,
     search: str | None = None,
 ) -> tuple[Sequence[Category], int]:
-    """List categories with pagination, filters, and search."""
     query = select(Category)
 
     if active_only:
@@ -114,6 +113,19 @@ async def update_category(
                 f"Category with slug '{category_data.slug}' already exists"
             ) from err
         raise ValueError("Database integrity constraint violation") from err
+    return category
+
+
+async def update_category_image(
+    session: SessionDep, category_id: uuid.UUID, image_url: str | None
+) -> Category | None:
+    category = await get_category_by_id(session, category_id)
+    if not category:
+        return None
+
+    category.image_url = image_url
+    await session.commit()
+    await session.refresh(category)
     return category
 
 

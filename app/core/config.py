@@ -108,5 +108,31 @@ class Settings(BaseSettings):
         description="Time window in seconds for global rate limiting",
     )
 
+    # AWS S3
+    AWS_ACCESS_KEY_ID: str = Field(
+        default="",
+        description="AWS Access Key ID",
+    )
+    AWS_SECRET_ACCESS_KEY: str = Field(
+        default="",
+        description="AWS Secret Access Key",
+    )
+    AWS_REGION: str = Field(
+        default="us-east-1",
+        description="AWS Region",
+    )
+    AWS_S3_ENDPOINT_URL: str | None = Field(
+        default=None,
+        description="S3 endpoint URL (for LocalStack in development)",
+    )
+    AWS_S3_BUCKET_CATEGORIES: str = Field(
+        default="orderly-categories",
+        description="S3 bucket for category images",
+    )
+    AWS_S3_BUCKET_PRODUCTS: str = Field(
+        default="orderly-products",
+        description="S3 bucket for product images",
+    )
+
 
 settings = Settings()

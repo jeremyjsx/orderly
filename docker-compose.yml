@@ -35,7 +35,21 @@ services:
     volumes:
       - redis_data:/data
 
+  localstack:
+    image: localstack/localstack:latest
+    container_name: orderly-localstack
+    restart: unless-stopped
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DEBUG=1
+      - AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
+    volumes:
+      - localstack_data:/var/lib/localstack
+
 volumes:
   postgres_data:
   rabbitmq_data:
   redis_data:
+  localstack_data:

@@ -38,7 +38,7 @@ class Product(Base):
         UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False, index=True
     )
     category: Mapped["Category"] = relationship("Category", back_populates="products")
-    image_url: Mapped[str] = mapped_column(Text, nullable=False)
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

@@ -46,6 +46,7 @@ async def test_create_category_success(client: AsyncClient, admin_token: str):
     assert data["name"] == "Test Category"
     assert data["slug"] == "test-category"
     assert data["is_active"] is True
+    assert data["image_url"] is None
 
 
 @pytest.mark.asyncio
@@ -205,7 +206,7 @@ async def test_update_category_success(
 
 @pytest.mark.asyncio
 async def test_delete_category_success(
-    client: AsyncClient, admin_token: str, db_session
+    client: AsyncClient, admin_token: str, db_session, mock_s3_upload
 ):
     """Test successfully deleting a category."""
     from app.modules.categories.models import Category
@@ -257,3 +258,95 @@ async def test_list_categories_with_items(
     category_names = [cat["name"] for cat in data["items"]]
     assert "Category 1" in category_names
     assert "Category 2" in category_names
+
+
+@pytest.mark.asyncio
+async def test_upload_category_image_success(
+    client: AsyncClient, admin_token: str, db_session, mock_s3_upload, test_image_file
+):
+    """Test that an admin can upload an image to a category."""
+    from app.modules.categories.models import Category
+
+    category = Category(
+        id=uuid.uuid4(),
+        name="Test Category",
+        description="Test",
+        slug="test-category",
+    )
+    db_session.add(category)
+    await db_session.commit()
+
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    filename, file_content, content_type = test_image_file
+    files = {"image": (filename, file_content, content_type)}
+
+    response = await client.put(
+        f"/api/v1/categories/{category.id}/image", files=files, headers=headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["image_url"] is not None
+
+
+@pytest.mark.asyncio
+async def test_upload_category_image_not_found(
+    client: AsyncClient, admin_token: str, mock_s3_upload, test_image_file
+):
+    """Test that uploading an image to a non-existent category returns 404."""
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    filename, file_content, content_type = test_image_file
+    files = {"image": (filename, file_content, content_type)}
+
+    response = await client.put(
+        f"/api/v1/categories/{uuid.uuid4()}/image", files=files, headers=headers
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_category_image_success(
+    client: AsyncClient, admin_token: str, db_session, mock_s3_upload
+):
+    """Test that an admin can delete a category image."""
+    from app.modules.categories.models import Category
+
+    category = Category(
+        id=uuid.uuid4(),
+        name="Test Category",
+        description="Test",
+        slug="test-category",
+        image_url="https://example.com/image.jpg",
+    )
+    db_session.add(category)
+    await db_session.commit()
+
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await client.delete(
+        f"/api/v1/categories/{category.id}/image", headers=headers
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["image_url"] is None
+
+
+@pytest.mark.asyncio
+async def test_delete_category_image_no_image(
+    client: AsyncClient, admin_token: str, db_session
+):
+    """Test that deleting an image from a category without one returns 404."""
+    from app.modules.categories.models import Category
+
+    category = Category(
+        id=uuid.uuid4(),
+        name="Test Category",
+        description="Test",
+        slug="test-category",
+    )
+    db_session.add(category)
+    await db_session.commit()
+
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = await client.delete(
+        f"/api/v1/categories/{category.id}/image", headers=headers
+    )
+    assert response.status_code == 404

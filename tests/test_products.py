@@ -247,7 +247,7 @@ async def test_update_product_success(
 
 @pytest.mark.asyncio
 async def test_delete_product_success(
-    client: AsyncClient, admin_token: str, db_session
+    client: AsyncClient, admin_token: str, db_session, mock_s3_upload
 ):
     """Test successfully deleting a product."""
     from app.modules.categories.models import Category

@@ -139,22 +139,22 @@ def mock_s3_upload():
     """Mock S3 upload functions to avoid actual S3 calls during tests."""
     with (
         patch(
-            "app.core.s3.upload_category_image",
+            "app.modules.categories.router.upload_category_image",
             new_callable=AsyncMock,
             return_value="https://test-bucket.s3.amazonaws.com/test-image.jpg",
         ) as mock_cat,
         patch(
-            "app.core.s3.upload_product_image",
+            "app.modules.products.router.upload_product_image",
             new_callable=AsyncMock,
             return_value="https://test-bucket.s3.amazonaws.com/test-image.jpg",
         ) as mock_prod,
         patch(
-            "app.core.s3.delete_category_image",
+            "app.modules.categories.router.delete_category_image",
             new_callable=AsyncMock,
             return_value=True,
         ),
         patch(
-            "app.core.s3.delete_product_image",
+            "app.modules.products.router.delete_product_image",
             new_callable=AsyncMock,
             return_value=True,
         ),

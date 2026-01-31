@@ -11,7 +11,8 @@ A scalable e-commerce backend built with **FastAPI**, featuring authentication, 
 - **Orders**: State machine transitions, shipping addresses, driver assignment
 - **Real-time Tracking**: WebSocket-based order tracking with driver location updates
 - **Async Processing**: RabbitMQ for payment processing with retry and dead-letter queues
-- **Infrastructure**: Health checks, CORS, Redis caching for rate limits
+- **Caching**: Redis caching for products and categories with automatic invalidation
+- **Infrastructure**: Health checks, CORS, rate limiting
 
 ## Architecture
 
@@ -81,7 +82,7 @@ app/
 ├── core/                   # Config, security, redis, middleware
 │   ├── config.py           # Pydantic settings
 │   ├── security.py         # JWT, password hashing
-│   ├── redis.py            # Redis client + refresh tokens
+│   ├── redis.py            # Redis client, tokens, cache
 │   ├── rate_limit.py       # Sliding window rate limiter
 │   ├── middleware.py       # Rate limit middleware
 │   ├── s3.py               # S3 image uploads

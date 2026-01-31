@@ -4,6 +4,7 @@ from enum import Enum
 from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPBearer
 
+from app.core.config import settings
 from app.core.redis import get_redis
 from app.modules.users.models import User
 
@@ -66,7 +67,7 @@ class RateLimiter:
         requests: int,
         window_seconds: int,
         strategy: RateLimitStrategy = RateLimitStrategy.IP,
-        key_prefix: str = "rate_limit",
+        key_prefix: str | None = None,
     ):
         """
         Initialize rate limiter.
@@ -80,7 +81,7 @@ class RateLimiter:
         self.requests = requests
         self.window_seconds = window_seconds
         self.strategy = strategy
-        self.key_prefix = key_prefix
+        self.key_prefix = key_prefix or settings.REDIS_PREFIX_RATE_LIMIT
 
     def _get_client_identifier(self, request: Request, user: User | None = None) -> str:
         """Get client identifier based on strategy."""

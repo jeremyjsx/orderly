@@ -83,7 +83,9 @@ app/
 │   ├── security.py         # JWT, password hashing
 │   ├── redis.py            # Redis client + refresh tokens
 │   ├── rate_limit.py       # Sliding window rate limiter
-│   └── middleware.py       # Rate limit middleware
+│   ├── middleware.py       # Rate limit middleware
+│   ├── s3.py               # S3 image uploads
+│   └── schemas.py          # Shared schemas
 ├── db/                     # Database session
 ├── events/                 # Async processing
 │   ├── client.py           # RabbitMQ connection

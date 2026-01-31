@@ -4,9 +4,30 @@ from collections.abc import Sequence
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import settings
+from app.core.redis import cache_key, delete_cache, get_cache, set_cache
 from app.db.session import SessionDep
 from app.modules.categories.models import Category
 from app.modules.categories.schemas import CategoryCreate, CategoryUpdate
+
+
+def _category_to_dict(category: Category) -> dict:
+    """Convert Category model to dict for caching."""
+    return {
+        "id": str(category.id),
+        "name": category.name,
+        "description": category.description,
+        "slug": category.slug,
+        "is_active": category.is_active,
+        "image_url": category.image_url,
+    }
+
+
+async def _invalidate_category_cache(category_id: uuid.UUID | None = None) -> None:
+    """Invalidate category caches."""
+    await delete_cache("categories")
+    if category_id:
+        await delete_cache(f"category:{category_id}")
 
 
 async def create_category(
@@ -32,14 +53,30 @@ async def create_category(
             f"Category with slug '{category_data.slug}' already exists"
         ) from err
     await session.refresh(category)
+    await _invalidate_category_cache()
     return category
 
 
 async def get_category_by_id(
     session: SessionDep, category_id: uuid.UUID
 ) -> Category | None:
+    key = cache_key("category", str(category_id))
+    cached = await get_cache(key)
+    if cached:
+        result = await session.execute(
+            select(Category).where(Category.id == category_id)
+        )
+        return result.scalar_one_or_none()
+
     result = await session.execute(select(Category).where(Category.id == category_id))
-    return result.scalar_one_or_none()
+    category = result.scalar_one_or_none()
+
+    if category:
+        await set_cache(
+            key, _category_to_dict(category), ttl=settings.CACHE_TTL_CATEGORY
+        )
+
+    return category
 
 
 async def get_category_by_slug(session: SessionDep, slug: str) -> Category | None:
@@ -113,6 +150,7 @@ async def update_category(
                 f"Category with slug '{category_data.slug}' already exists"
             ) from err
         raise ValueError("Database integrity constraint violation") from err
+    await _invalidate_category_cache(category_id)
     return category
 
 
@@ -126,6 +164,7 @@ async def update_category_image(
     category.image_url = image_url
     await session.commit()
     await session.refresh(category)
+    await _invalidate_category_cache(category_id)
     return category
 
 
@@ -137,7 +176,8 @@ async def delete_category(session: SessionDep, category_id: uuid.UUID) -> bool:
     try:
         await session.delete(category)
         await session.commit()
-        return True
     except IntegrityError:
         await session.rollback()
         raise
+    await _invalidate_category_cache(category_id)
+    return True

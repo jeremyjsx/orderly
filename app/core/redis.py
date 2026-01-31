@@ -1,3 +1,4 @@
+import json
 import logging
 
 import redis.asyncio as aioredis
@@ -68,17 +69,14 @@ async def is_redis_connected() -> bool:
         return False
 
 
-REFRESH_TOKEN_PREFIX = "refresh_token"
-
-
 def _get_refresh_token_key(user_id: str, jti: str) -> str:
     """Generate Redis key for a refresh token."""
-    return f"{REFRESH_TOKEN_PREFIX}:{user_id}:{jti}"
+    return f"{settings.REDIS_PREFIX_REFRESH_TOKEN}:{user_id}:{jti}"
 
 
 def _get_user_tokens_pattern(user_id: str) -> str:
     """Generate pattern to match all refresh tokens for a user."""
-    return f"{REFRESH_TOKEN_PREFIX}:{user_id}:*"
+    return f"{settings.REDIS_PREFIX_REFRESH_TOKEN}:{user_id}:*"
 
 
 async def store_refresh_token(user_id: str, jti: str, ttl_days: int = 7) -> bool:
@@ -185,4 +183,70 @@ async def revoke_all_user_tokens(user_id: str) -> int:
         return 0
     except Exception as e:
         logger.error(f"Failed to revoke user tokens: {e}")
+        return 0
+
+
+def cache_key(prefix: str, *args, **kwargs) -> str:
+    """
+    Generate a cache key from prefix and arguments.
+    """
+    key_parts = [settings.REDIS_PREFIX_CACHE, prefix]
+    key_parts.extend(str(arg) for arg in args)
+    key_parts.extend(f"{k}:{v}" for k, v in sorted(kwargs.items()))
+    return ":".join(key_parts)
+
+
+async def get_cache(key: str) -> dict | list | None:
+    """
+    Get a cached value by key.
+    """
+    if _redis_client is None:
+        return None
+
+    try:
+        data = await _redis_client.get(key)
+        if data:
+            return json.loads(data)
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to get cache for key {key}: {e}")
+        return None
+
+
+async def set_cache(key: str, value: dict | list, ttl: int = 300) -> bool:
+    """
+    Set a cached value with TTL.
+    """
+    if _redis_client is None:
+        return False
+
+    try:
+        await _redis_client.setex(key, ttl, json.dumps(value, default=str))
+        logger.debug(f"Cached key: {key} (TTL: {ttl}s)")
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to set cache for key {key}: {e}")
+        return False
+
+
+async def delete_cache(pattern: str) -> int:
+    """
+    Delete cache keys matching a pattern.
+    """
+    if _redis_client is None:
+        return 0
+
+    try:
+        full_pattern = f"{settings.REDIS_PREFIX_CACHE}:{pattern}*"
+        keys = []
+        async for key in _redis_client.scan_iter(match=full_pattern):
+            keys.append(key)
+
+        if keys:
+            deleted = await _redis_client.delete(*keys)
+            logger.debug(f"Deleted {deleted} cache keys matching: {full_pattern}")
+            return deleted
+        return 0
+    except Exception as e:
+        logger.warning(f"Failed to delete cache for pattern {pattern}: {e}")
         return 0

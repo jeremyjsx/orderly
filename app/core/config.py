@@ -9,6 +9,17 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Redis Prefixes
+    REDIS_PREFIX_REFRESH_TOKEN: str = "refresh_token"
+    REDIS_PREFIX_CACHE: str = "cache"
+    REDIS_PREFIX_RATE_LIMIT: str = "rate_limit"
+
+    # Cache TTLs in seconds
+    CACHE_TTL_PRODUCT: int = 300  # 5 minutes
+    CACHE_TTL_CATEGORY: int = 600  # 10 minutes
+    CACHE_TTL_PRODUCTS_LIST: int = 60  # 1 minute
+    CACHE_TTL_CATEGORIES_LIST: int = 300  # 5 minutes
+
     # General
     APP_NAME: str = "Orderly"
     DESCRIPTION: str = (

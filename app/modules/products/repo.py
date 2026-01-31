@@ -4,6 +4,8 @@ from collections.abc import Sequence
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import settings
+from app.core.redis import cache_key, delete_cache, get_cache, set_cache
 from app.db.session import SessionDep
 from app.modules.cart.repo import delete_cart_items_by_product_id
 from app.modules.categories.repo import get_category_by_id
@@ -38,14 +40,47 @@ async def create_product(session: SessionDep, product_data: ProductCreate) -> Pr
         await session.rollback()
         raise
     await session.refresh(product)
+    await _invalidate_product_cache()
     return product
+
+
+def _product_to_dict(product: Product) -> dict:
+    """Convert Product model to dict for caching."""
+    return {
+        "id": str(product.id),
+        "name": product.name,
+        "description": product.description,
+        "price": float(product.price),
+        "stock": product.stock,
+        "category_id": str(product.category_id),
+        "image_url": product.image_url,
+        "is_active": product.is_active,
+    }
+
+
+async def _invalidate_product_cache(product_id: uuid.UUID | None = None) -> None:
+    """Invalidate product caches."""
+    await delete_cache("products")
+    if product_id:
+        await delete_cache(f"product:{product_id}")
 
 
 async def get_product_by_id(
     session: SessionDep, product_id: uuid.UUID
 ) -> Product | None:
+    key = cache_key("product", str(product_id))
+    cached = await get_cache(key)
+    if cached:
+        result = await session.execute(select(Product).where(Product.id == product_id))
+        return result.scalar_one_or_none()
+
     result = await session.execute(select(Product).where(Product.id == product_id))
-    return result.scalar_one_or_none()
+    product = result.scalar_one_or_none()
+
+    if product:
+        await set_cache(key, _product_to_dict(product), ttl=settings.CACHE_TTL_PRODUCT)
+
+    return product
 
 
 async def list_products(
@@ -141,6 +176,7 @@ async def update_product(
     except IntegrityError:
         await session.rollback()
         raise
+    await _invalidate_product_cache(product_id)
     return product
 
 
@@ -154,6 +190,7 @@ async def update_product_image(
     product.image_url = image_url
     await session.commit()
     await session.refresh(product)
+    await _invalidate_product_cache(product_id)
     return product
 
 
@@ -170,4 +207,5 @@ async def delete_product(session: SessionDep, product_id: uuid.UUID) -> bool:
     except IntegrityError:
         await session.rollback()
         raise
+    await _invalidate_product_cache(product_id)
     return True

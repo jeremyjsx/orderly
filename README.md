@@ -60,6 +60,8 @@ make run
 
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
+- **Prometheus**: http://localhost:9090
+- **Grafana**: http://localhost:3000 (admin/orderly)
 - **RabbitMQ Management**: http://localhost:15672 (orderly/orderly)
 
 ## Testing

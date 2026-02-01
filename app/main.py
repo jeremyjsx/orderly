@@ -1,14 +1,18 @@
 from contextlib import asynccontextmanager
 
+from asgi_correlation_id import CorrelationIdMiddleware
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import router as api_router
 from app.core.config import settings
+from app.core.logging import configure_logging
 from app.core.middleware import RateLimitMiddleware
 from app.core.redis import connect_redis, disconnect_redis
 from app.events.client import connect, disconnect
 from app.modules.health.router import router as health_router
+
+configure_logging(json_logs=True, log_level="INFO")
 
 
 def create_app() -> FastAPI:
@@ -36,6 +40,12 @@ def register_middlewares(app: FastAPI) -> None:
 
     if settings.RATE_LIMIT_ENABLED:
         app.add_middleware(RateLimitMiddleware)
+
+    app.add_middleware(
+        CorrelationIdMiddleware,
+        header_name="X-Request-ID",
+        update_request_header=True,
+    )
 
 
 @asynccontextmanager

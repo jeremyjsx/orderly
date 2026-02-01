@@ -46,13 +46,13 @@ cp .env.example .env
 ### 2. Start Services
 
 ```bash
-# Start PostgreSQL, Redis, RabbitMQ
-docker-compose up -d
+# Start infrastructure (DB, Redis, RabbitMQ, S3, Prometheus, Grafana)
+make dev
 
 # Apply database migrations
 alembic upgrade head
 
-# Start the API server
+# Start the API server with hot-reload
 make run
 ```
 
@@ -64,17 +64,30 @@ make run
 - **Grafana**: http://localhost:3000 (admin/orderly)
 - **RabbitMQ Management**: http://localhost:15672 (orderly/orderly)
 
+## Development
+
+### Local Development (recommended)
+
+```bash
+make dev          # Start infrastructure only
+make run          # Start API with hot-reload
+```
+
+### Full Docker
+
+```bash
+make docker-build   # Build API image
+make docker-up      # Start all services
+make docker-logs    # View API logs
+make docker-down    # Stop all services
+```
+
 ## Testing
 
 ```bash
-# Run all tests
-make test
-
-# Lint code
-make lint
-
-# Format code
-make format
+make test       # Run all tests
+make lint       # Lint code
+make format     # Format code
 ```
 
 ## Project Structure
@@ -117,8 +130,10 @@ app/
 | Message Queue | RabbitMQ |
 | Auth | JWT + Argon2 |
 | Real-time | WebSockets |
+| Monitoring | Prometheus + Grafana |
 | Migrations | Alembic |
 | Testing | pytest + httpx |
+| Containerization | Docker |
 
 
 ## Environment Variables

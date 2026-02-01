@@ -19,7 +19,7 @@ PORT ?= 8000
 PYTEST = $(VENV_PYTHON) -m pytest
 DOCKER_COMPOSE = docker compose
 
-.PHONY: venv install lint format format-check run test clean-test docker-build docker-up docker-down docker-logs
+.PHONY: venv install lint format format-check run dev dev-down test clean-test docker-build docker-up docker-down docker-logs
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -41,6 +41,10 @@ format-check:
 
 run:
 	$(UVICORN) app.main:app --reload --port $(PORT)
+
+dev:
+	$(DOCKER_COMPOSE) up -d postgres redis rabbitmq localstack prometheus grafana
+	@echo "Infrastructure ready. Run 'make run' to start the API with hot-reload."
 
 test:
 	@echo "Starting test database container..."

@@ -1,11 +1,20 @@
 import uuid
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CartItemCreate(BaseModel):
     product_id: uuid.UUID
     quantity: int = Field(ge=1, default=1)
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "product_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+                "quantity": 2,
+            }
+        }
+    )
 
 
 class CartItemPublic(BaseModel):
@@ -29,6 +38,8 @@ class CartItemWithProduct(CartItemPublic):
 
 class CartItemUpdate(BaseModel):
     quantity: int = Field(ge=1)
+
+    model_config = ConfigDict(json_schema_extra={"example": {"quantity": 3}})
 
 
 class CartTotals(BaseModel):

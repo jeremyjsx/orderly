@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.modules.orders.models import OrderStatus
 from app.modules.products.schemas import ProductPublic
@@ -15,6 +15,20 @@ class ShippingAddressCreate(BaseModel):
     state: str
     postal_code: str
     country: str
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "recipient_name": "John Doe",
+                "phone": "+1234567890",
+                "street": "123 Main Street",
+                "city": "New York",
+                "state": "NY",
+                "postal_code": "10001",
+                "country": "USA",
+            }
+        }
+    )
 
 
 class ShippingAddressPublic(BaseModel):
@@ -56,11 +70,23 @@ class OrderPublic(BaseModel):
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
 
+    model_config = ConfigDict(json_schema_extra={"example": {"status": "SHIPPED"}})
+
 
 class LocationUpdate(BaseModel):
     latitude: float
     longitude: float
     timestamp: datetime | None = None
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "latitude": 40.7128,
+                "longitude": -74.0060,
+                "timestamp": "2026-01-30T12:00:00Z",
+            }
+        }
+    )
 
     @field_validator("latitude")
     @classmethod

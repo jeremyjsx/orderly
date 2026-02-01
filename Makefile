@@ -17,9 +17,9 @@ endif
 PORT ?= 8000
 
 PYTEST = $(VENV_PYTHON) -m pytest
-DOCKER_COMPOSE = docker-compose
+DOCKER_COMPOSE = docker compose
 
-.PHONY: venv install lint format format-check run test test-docker clean-test
+.PHONY: venv install lint format format-check run test clean-test docker-build docker-up docker-down docker-logs
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -67,3 +67,15 @@ test:
 
 clean-test:
 	$(DOCKER_COMPOSE) -f docker-compose.test.yml down -v
+
+docker-build:
+	$(DOCKER_COMPOSE) build
+
+docker-up:
+	$(DOCKER_COMPOSE) up -d
+
+docker-down:
+	$(DOCKER_COMPOSE) down
+
+docker-logs:
+	$(DOCKER_COMPOSE) logs -f api

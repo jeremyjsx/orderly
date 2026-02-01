@@ -1,4 +1,23 @@
 services:
+  api:
+    build: .
+    container_name: orderly-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      - AWS_S3_ENDPOINT_URL=http://localstack:4566
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - localstack
+
   postgres:
     image: postgres:16-alpine
     container_name: orderly-postgres

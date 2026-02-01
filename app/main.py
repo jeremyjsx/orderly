@@ -31,16 +31,28 @@ def create_app() -> FastAPI:
     return app
 
 
+_instrumentator: Instrumentator | None = None
+
+
 def setup_metrics(app: FastAPI) -> None:
     """Configure Prometheus metrics endpoint."""
-    Instrumentator(
+    global _instrumentator
+
+    if _instrumentator is not None:
+        _instrumentator.expose(app, endpoint="/metrics", include_in_schema=True)
+        return
+
+    _instrumentator = Instrumentator(
         should_group_status_codes=True,
         should_ignore_untemplated=True,
         should_instrument_requests_inprogress=True,
         excluded_handlers=["/health", "/metrics"],
         inprogress_name="http_requests_inprogress",
         inprogress_labels=True,
-    ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=True)
+    )
+    _instrumentator.instrument(app).expose(
+        app, endpoint="/metrics", include_in_schema=True
+    )
 
 
 def register_middlewares(app: FastAPI) -> None:

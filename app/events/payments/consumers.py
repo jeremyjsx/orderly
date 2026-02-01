@@ -1,21 +1,22 @@
 import asyncio
 import json
-import logging
 import signal
 import uuid
 from datetime import UTC, datetime
 
 import aio_pika
 from aio_pika.abc import AbstractExchange, AbstractIncomingMessage
+from asgi_correlation_id.context import correlation_id
 
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.db.session import AsyncSessionLocal
 from app.events.orders.events import OrderCreatedEvent
 from app.events.payments.events import PaymentProcessedEvent, PaymentProcessedPayload
 from app.modules.orders.models import OrderStatus
 from app.modules.orders.repo import update_order_status
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _processed_events: set[uuid.UUID] = set()
 
@@ -90,12 +91,15 @@ async def publish_payment_event(
             content_type="application/json",
             delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
             message_id=str(payment_event.event_id),
-            correlation_id=str(payment_event.payload.order_id),
+            correlation_id=(
+                payment_event.correlation_id or str(payment_event.payload.order_id)
+            ),
             timestamp=payment_event.occurred_at,
             headers={
                 "event_type": payment_event.event_type,
                 "event_version": str(payment_event.event_version),
                 "producer": payment_event.producer,
+                "x-correlation-id": payment_event.correlation_id or "",
             },
         )
         routing_key = "payment.processed"
@@ -144,9 +148,13 @@ async def handle_order_created(
         order_event = OrderCreatedEvent(**body)
         event_id = order_event.event_id
 
+        if order_event.correlation_id:
+            correlation_id.set(order_event.correlation_id)
+
         logger.info(
-            f"Received order.created event: {event_id}, "
-            f"order: {order_event.payload.order_id}"
+            "Received order.created event",
+            event_id=str(event_id),
+            order_id=str(order_event.payload.order_id),
         )
 
         if is_event_processed(event_id):

@@ -1,7 +1,16 @@
 import uuid
 from datetime import UTC, datetime
 
+from asgi_correlation_id import correlation_id
 from pydantic import BaseModel, Field, field_validator
+
+
+def _get_correlation_id() -> str | None:
+    """Get current correlation ID from context, if available."""
+    try:
+        return correlation_id.get()
+    except Exception:
+        return None
 
 
 class Event(BaseModel):
@@ -10,6 +19,10 @@ class Event(BaseModel):
     event_id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
         description="Unique identifier for this event instance",
+    )
+    correlation_id: str | None = Field(
+        default_factory=_get_correlation_id,
+        description="Request correlation ID for distributed tracing",
     )
     event_type: str = Field(
         description="Type of event (e.g., 'order.created', 'payment.processed')"

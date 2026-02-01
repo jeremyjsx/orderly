@@ -12,7 +12,7 @@ A scalable e-commerce backend built with **FastAPI**, featuring authentication, 
 - **Real-time Tracking**: WebSocket-based order tracking with driver location updates
 - **Async Processing**: RabbitMQ for payment processing with retry and dead-letter queues
 - **Caching**: Redis caching for products and categories with automatic invalidation
-- **Observability**: Correlation IDs for distributed tracing, structured logging
+- **Observability**: Prometheus metrics, correlation IDs, structured JSON logging
 - **Infrastructure**: Health checks, CORS, rate limiting
 
 ## Architecture

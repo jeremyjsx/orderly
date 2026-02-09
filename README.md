@@ -50,7 +50,7 @@ cp .env.example .env
 make dev
 
 # Apply database migrations
-alembic upgrade head
+make migrate
 
 # Start the API server with hot-reload
 make run
@@ -122,28 +122,27 @@ app/
 
 ## Tech Stack
 
-| Category | Technology |
-|----------|------------|
-| Framework | FastAPI |
-| Database | PostgreSQL + SQLAlchemy (async) |
-| Cache | Redis |
-| Message Queue | RabbitMQ |
-| Auth | JWT + Argon2 |
-| Real-time | WebSockets |
-| Monitoring | Prometheus + Grafana |
-| Migrations | Alembic |
-| Testing | pytest + httpx |
-| Containerization | Docker |
-
+| Category         | Technology                      |
+| ---------------- | ------------------------------- |
+| Framework        | FastAPI                         |
+| Database         | PostgreSQL + SQLAlchemy (async) |
+| Cache            | Redis                           |
+| Message Queue    | RabbitMQ                        |
+| Auth             | JWT + Argon2                    |
+| Real-time        | WebSockets                      |
+| Monitoring       | Prometheus + Grafana            |
+| Migrations       | Alembic                         |
+| Testing          | pytest + httpx                  |
+| Containerization | Docker                          |
 
 ## Environment Variables
 
 See `.env.example` for all available configuration options.
 
 Key variables:
+
 - `DATABASE_URL`: PostgreSQL connection string
 - `REDIS_URL`: Redis connection string
 - `RABBITMQ_URL`: RabbitMQ connection string
 - `JWT_SECRET_KEY`: Secret for JWT signing (change in production!)
 - `CORS_ORIGINS`: Allowed origins (comma-separated or `*`)
-

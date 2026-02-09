@@ -6,12 +6,14 @@ ifeq ($(OS),Windows_NT)
 	PIP = $(VENV_PYTHON) -m pip
 	UVICORN = $(VENV)/Scripts/uvicorn
 	RUFF = $(VENV)/Scripts/ruff
+	ALEMBIC = $(VENV)/Scripts/alembic
 else
 	PYTHON = python3
 	VENV_PYTHON = $(VENV)/bin/python
 	PIP = $(VENV_PYTHON) -m pip
 	UVICORN = $(VENV)/bin/uvicorn
 	RUFF = $(VENV)/bin/ruff
+	ALEMBIC = $(VENV)/bin/alembic
 endif
 
 PORT ?= 8000
@@ -19,7 +21,7 @@ PORT ?= 8000
 PYTEST = $(VENV_PYTHON) -m pytest
 DOCKER_COMPOSE = docker compose
 
-.PHONY: venv install lint format format-check run dev dev-down test clean-test docker-build docker-up docker-down docker-logs
+.PHONY: venv install lint format format-check run dev dev-down test clean-test docker-build docker-up docker-down docker-logs migrate migrate-down
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -41,6 +43,12 @@ format-check:
 
 run:
 	$(UVICORN) app.main:app --reload --port $(PORT)
+
+migrate:
+	$(ALEMBIC) upgrade head
+
+migrate-down:
+	$(ALEMBIC) downgrade -1
 
 dev:
 	$(DOCKER_COMPOSE) up -d postgres redis rabbitmq localstack prometheus grafana

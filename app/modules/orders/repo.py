@@ -387,6 +387,7 @@ async def assign_driver_to_order(
         raise ValueError(f"Order with id {order_id} already has a driver assigned")
 
     order.driver_id = driver_id
+    order.status = OrderStatus.SHIPPED.value
 
     try:
         await session.commit()

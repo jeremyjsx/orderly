@@ -27,6 +27,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process request with rate limiting."""
+        if request.headers.get("upgrade", "").lower() == "websocket":
+            return await call_next(request)
+
         if not settings.RATE_LIMIT_ENABLED:
             return await call_next(request)
 
